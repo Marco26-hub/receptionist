@@ -1,0 +1,5 @@
+import { generateWhatsAppDraft } from "../../../../lib/ai";
+import { requireApiAdmin } from "../../../../lib/api-auth";
+import { saveGeneratedDraft } from "../../../../lib/repository";
+import { jsonError, readJson, requiredText } from "../../../../lib/validation";
+export async function POST(request: Request) { const auth = await requireApiAdmin(); if (auth.response) return auth.response; try { const body = await readJson(request); const draft = await generateWhatsAppDraft({ firstName: requiredText(body.firstName, "Nome", 80), reason: requiredText(body.reason, "Motivo", 500), service: typeof body.service === "string" ? body.service : undefined, toneOfVoice: requiredText(body.toneOfVoice, "Tono", 300), centerName: requiredText(body.centerName, "Centro", 150) }); if (typeof body.opportunityId === "string" && typeof body.organizationId === "string" && typeof body.customerId === "string") await saveGeneratedDraft({ opportunityId: body.opportunityId, organizationId: body.organizationId, customerId: body.customerId, body: draft.body }); return Response.json({ ok: true, ...draft }); } catch (error) { return jsonError(error); } }

@@ -12,9 +12,10 @@ export function SiteHeader() {
         <div className="nav-links">
           <Link href="/prodotto">Prodotto</Link>
           <Link href="/come-funziona">Come funziona</Link>
-          <Link href="/settori/centri-estetici">Per chi è</Link>
+          <Link href="/settori">Per chi è</Link>
           <Link href="/prezzi">Prezzi</Link>
           <Link href="/risorse">Risorse</Link>
+          <Link href="/accesso">Accedi</Link>
         </div>
         <a className="nav-cta" href={contactHref}>Prenota una demo</a>
       </nav>

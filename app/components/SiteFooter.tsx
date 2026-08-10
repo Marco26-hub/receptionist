@@ -15,6 +15,7 @@ export function SiteFooter() {
         <Link href="/come-funziona">Come funziona</Link>
         <Link href="/prezzi">Prezzi</Link>
         <Link href="/contatti">Contatti</Link>
+        <Link href="/accesso">Area riservata</Link>
       </div>
       <div>
         <strong>Soluzioni</strong>

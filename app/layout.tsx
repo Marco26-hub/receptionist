@@ -1,22 +1,11 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://agendapiena.ai"),
-  title: { default: "AgendaPiena AI | Più appuntamenti per centri estetici", template: "%s | AgendaPiena AI" },
+  title: { default: "AgendaPiena AI | Più appuntamenti, meno tempo perso", template: "%s | AgendaPiena AI" },
   description:
-    "AgendaPiena AI aiuta i centri estetici a recuperare clienti, riempire gli orari liberi e preparare messaggi WhatsApp personali.",
+    "AgendaPiena AI aiuta attività su appuntamento a recuperare clienti, riempire gli orari liberi e preparare messaggi WhatsApp personali.",
   keywords: [
     "software AI centri estetici",
     "assistente WhatsApp centri estetici",
@@ -43,12 +32,14 @@ export const metadata: Metadata = {
     locale: "it_IT",
     siteName: "AgendaPiena AI",
     url: "/",
+    images: [{ url: "/agendapiena-luxury-receptionist.png", width: 1536, height: 2304, alt: "Assistente AgendaPiena al telefono in un centro premium" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "AgendaPiena AI",
     description:
       "L’assistente AI per centri estetici che recupera clienti e riempie gli orari liberi.",
+    images: ["/agendapiena-luxury-receptionist.png"],
   },
   robots: { index: true, follow: true, googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1, "max-video-preview": -1 } },
 };
@@ -60,11 +51,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="it">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

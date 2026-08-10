@@ -1,0 +1,3 @@
+import { AdminSection } from "../../components/AdminSection"; import { requireAdmin } from "../../lib/auth"; import { getAdminLists } from "../../lib/repository";
+export const dynamic = "force-dynamic"; export default async function AgendaPage() { await requireAdmin(); const data = await getAdminLists(); return <AdminSection kind="appointments" eyebrow={data.mode === "live" ? "Agenda collegata" : "Dati dimostrativi"} title="Appuntamenti" rows={data.appointments as unknown as Record<string, string | boolean>[]} columns={[{ key: "startsAt", label: "Quando" }, { key: "customer", label: "Cliente" }, { key: "service", label: "Servizio" }, { key: "status", label: "Stato" }]} />; }
+

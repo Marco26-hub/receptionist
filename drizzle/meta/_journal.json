@@ -1,5 +1,20 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "entries": []
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1786397210741,
+      "tag": "0000_misty_gabe_jones",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1786397412112,
+      "tag": "0001_luxuriant_nico_minoru",
+      "breakpoints": true
+    }
+  ]
 }

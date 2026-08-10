@@ -1,0 +1,3 @@
+import { AdminSection } from "../../components/AdminSection"; import { requireAdmin } from "../../lib/auth"; import { getAdminLists } from "../../lib/repository";
+export const dynamic = "force-dynamic"; export default async function CustomersPage() { await requireAdmin(); const data = await getAdminLists(); return <AdminSection kind="customers" eyebrow={data.mode === "live" ? "Archivio clienti" : "Dati dimostrativi"} title="Clienti e consenso" rows={data.customers as unknown as Record<string, string | boolean>[]} columns={[{ key: "name", label: "Cliente" }, { key: "phone", label: "Telefono" }, { key: "lastVisit", label: "Ultima visita" }, { key: "consent", label: "Consenso" }]} />; }
+

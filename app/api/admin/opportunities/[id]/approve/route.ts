@@ -1,0 +1,4 @@
+import { requireApiAdmin } from "../../../../../lib/api-auth";
+import { getMessageForApprovedSend, markMessageSent, updateMessageStatus } from "../../../../../lib/repository";
+import { sendWhatsAppText } from "../../../../../lib/whatsapp";
+export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) { const auth = await requireApiAdmin(); if (auth.response) return auth.response; const { id } = await params; await updateMessageStatus({ opportunityId: id, status: "approved", actorEmail: auth.session.email }); const payload = await getMessageForApprovedSend(id); if (!payload) return Response.json({ ok: false, error: "Invio bloccato: bozza, numero o consenso mancanti" }, { status: 409 }); const sent = await sendWhatsAppText({ to: payload.to, body: payload.body }); return Response.json(await markMessageSent({ opportunityId: id, messageId: payload.messageId, externalMessageId: sent.id, demo: sent.demo })); }

@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import { JsonLd } from "./components/JsonLd";
 import { SiteFooter } from "./components/SiteFooter";
 import { SiteHeader } from "./components/SiteHeader";
 import { cities, contactHref, siteUrl } from "./lib/site";
 
 export const metadata: Metadata = {
-  title: "Assistente AI per centri estetici",
-  description: "Trova clienti che non tornano, riempi gli orari liberi e prepara messaggi WhatsApp personali. Scopri AgendaPiena AI per centri estetici.",
+  title: "Assistente AI per attività su appuntamento",
+  description: "Recupera clienti, riempi gli orari liberi e prepara messaggi WhatsApp per beauty, parrucchieri, cliniche, dentisti e wellness.",
   alternates: { canonical: "/" },
 };
 
@@ -45,7 +46,7 @@ const schemas = [
     name: "AgendaPiena AI",
     applicationCategory: "BusinessApplication",
     operatingSystem: "Web",
-    description: "Assistente AI per centri estetici che recupera clienti, riempie gli orari liberi e prepara messaggi WhatsApp da approvare.",
+    description: "Assistente AI per attività su appuntamento che recupera clienti, riempie gli orari liberi e prepara messaggi WhatsApp da approvare.",
     offers: { "@type": "Offer", price: "390", priceCurrency: "EUR", url: `${siteUrl}/prezzi` },
   },
 ];
@@ -55,32 +56,39 @@ export default function Home() {
     <main>
       <JsonLd data={schemas} />
       <div className="home-hero">
+        <div className="cinematic-media" aria-hidden="true">
+          <Image src="/agendapiena-luxury-receptionist.png" alt="" fill priority sizes="100vw" />
+          <div className="cinematic-vignette" />
+          <div className="cinematic-light" />
+          <div className="film-grain" />
+          <div className="tech-orbit orbit-one" />
+          <div className="tech-orbit orbit-two" />
+        </div>
         <SiteHeader />
         <section className="hero-grid">
           <div className="hero-copy">
-            <span className="eyebrow">Assistente AI per centri estetici</span>
+            <span className="eyebrow">Intelligenza operativa per attività su appuntamento</span>
             <h1>Più appuntamenti. Meno tempo perso.</h1>
             <p>
-              AgendaPiena AI trova le clienti da ricontattare, gli orari da riempire e i percorsi da riprendere. Poi prepara messaggi WhatsApp personali, pronti per la tua approvazione.
+              AgendaPiena AI trova le persone da ricontattare, gli orari da riempire e i percorsi da riprendere. Poi prepara messaggi WhatsApp personali, pronti per la tua approvazione.
             </p>
             <div className="hero-actions">
               <a className="primary-action" href={contactHref}>Prenota una demo</a>
               <a className="secondary-action" href="/come-funziona">Scopri come funziona</a>
             </div>
             <div className="proof-strip" aria-label="Caratteristiche principali">
-              <span>Pensato per il beauty</span>
+              <span>Beauty, wellness e studi</span>
               <span>Controllo umano</span>
               <span>Pronto da telefono</span>
             </div>
           </div>
 
-          <div className="hero-stage" aria-label="Anteprima della schermata AgendaPiena AI">
-            <div className="signal signal-coral" />
-            <div className="signal signal-mint" />
-            <div className="phone-frame">
+          <div className="hero-stage luxury-stage" aria-label="Anteprima dell’intelligenza operativa AgendaPiena">
+            <span className="live-caption"><i /> Conversazione assistita</span>
+            <div className="phone-frame floating-console">
               <div className="phone-top"><span>Oggi</span><strong>€2.290 individuati</strong></div>
               <div className="pulse-card"><span className="live-dot" />Assistente attivo</div>
-              {opportunities.map(([title, detail, value, tag]) => (
+              {opportunities.slice(0, 2).map(([title, detail, value, tag]) => (
                 <article className="opportunity-card" key={title}>
                   <div><span>{tag}</span><h3>{title}</h3><p>{detail}</p></div>
                   <strong>{value}</strong>
@@ -111,6 +119,15 @@ export default function Home() {
           ))}
         </div>
         <a className="text-link" href="/prodotto">Vedi tutte le funzioni <span>→</span></a>
+      </section>
+
+      <section className="full-workflow">
+        <div className="section-title"><span>Il flusso completo</span><h2>Dall’agenda al risultato, con controllo umano.</h2></div>
+        <div className="workflow-rail">
+          {["Importa", "Verifica consenso", "Analizza", "Assegna priorità", "Scrive", "Approvi", "Invia", "Gestisce risposta", "Prenota", "Impara"].map((label, index) => <div key={label}><span>{String(index + 1).padStart(2, "0")}</span><strong>{label}</strong></div>)}
+        </div>
+        <p>Ogni passaggio viene registrato. Puoi sempre capire perché una cliente è stata selezionata, chi ha approvato il messaggio e quale risultato ha prodotto.</p>
+        <a className="text-link" href="/come-funziona">Vedi ogni fase nel dettaglio <span>→</span></a>
       </section>
 
       <section className="product-band">
