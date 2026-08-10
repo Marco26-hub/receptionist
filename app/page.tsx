@@ -33,9 +33,60 @@ const adminCards = [
   ["12", "messaggi da approvare"],
 ];
 
+const services = [
+  "Recupero clienti inattive da 60/90/180 giorni",
+  "Riempimento slot vuoti in agenda",
+  "Follow-up post trattamento e pacchetti incompleti",
+  "Campagne WhatsApp personalizzate da approvare",
+  "Schermata mobile con incasso possibile",
+  "Report settimanale semplice per titolare e staff",
+];
+
+const competitors = [
+  ["Booking AI low-cost", "€19-119/mese", "Prenotazione, reminder, link agenda"],
+  ["Segretaria AI generalista", "da €149/mese", "Risponde a chiamate e WhatsApp"],
+  ["Gestionale beauty completo", "€24+/mese", "CRM, agenda, app e automazioni"],
+  ["AgendaPiena AI", "€790 setup + €390/mese", "Clienti ferme, buchi in agenda, messaggi WhatsApp pronti"],
+];
+
+const localAreas = [
+  "Milano",
+  "Roma",
+  "Torino",
+  "Bologna",
+  "Firenze",
+  "Napoli",
+  "Verona",
+  "Rimini",
+];
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "AgendaPiena AI",
+  applicationCategory: "BusinessApplication",
+  operatingSystem: "Web, Mobile, WhatsApp",
+  description:
+    "Assistente AI per centri estetici premium in Italia: recupera clienti ferme, riempie buchi in agenda e prepara messaggi WhatsApp da approvare.",
+  offers: {
+    "@type": "Offer",
+    price: "390",
+    priceCurrency: "EUR",
+    description: "Pilot 30 giorni: setup €790 e canone €390/mese.",
+  },
+  areaServed: {
+    "@type": "Country",
+    name: "Italia",
+  },
+};
+
 export default function Home() {
   return (
     <main>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <section className="hero-shell" id="home">
         <nav className="nav">
           <a className="brand" href="#home" aria-label="AgendaPiena AI home">
@@ -45,6 +96,7 @@ export default function Home() {
           <div className="nav-links" aria-label="Navigazione principale">
             <a href="#workflow">Workflow</a>
             <a href="#admin">Admin</a>
+            <a href="#servizi">Servizi</a>
             <a href="#prezzi">Prezzi</a>
           </div>
           <a className="nav-cta" href="mailto:demo@agendapiena.ai">
@@ -54,12 +106,12 @@ export default function Home() {
 
         <div className="hero-grid">
           <div className="hero-copy">
-            <div className="eyebrow">AI Growth Operator per centri beauty premium</div>
-            <h1>Trova i soldi nascosti nella tua agenda.</h1>
+            <div className="eyebrow">Assistente AI premium per centri estetici</div>
+            <h1>La tua agenda lavora anche quando tu sei in cabina.</h1>
             <p>
-              Non e una segretaria AI. Ogni mattina analizza clienti, slot vuoti,
-              trattamenti e storico, poi prepara azioni WhatsApp per riempire
-              l&apos;agenda e recuperare clienti ferme.
+              AgendaPiena AI controlla agenda e clienti, trova chi non torna da
+              tempo, nota gli orari vuoti e prepara messaggi WhatsApp eleganti da
+              approvare. Tu resti al comando, senza rincorrere chat tutto il giorno.
             </p>
             <div className="hero-actions">
               <a className="primary-action" href="mailto:demo@agendapiena.ai">
@@ -70,9 +122,9 @@ export default function Home() {
               </a>
             </div>
             <div className="proof-strip" aria-label="Metriche chiave">
-              <span>Setup in 7 giorni</span>
+              <span>Per centri estetici premium</span>
               <span>WhatsApp-first</span>
-              <span>Mobile-first</span>
+              <span>Disegnato per titolari</span>
             </div>
           </div>
 
@@ -106,22 +158,24 @@ export default function Home() {
 
       <section className="section compact">
         <div className="section-title">
-          <span>Perche vende</span>
-          <h2>Gli altri rispondono. Noi facciamo crescere.</h2>
+          <span>Posizionamento contro la concorrenza</span>
+          <h2>Non e un bot. E una presenza ordinata dietro la tua agenda.</h2>
         </div>
         <div className="split">
           <div className="dark-panel">
             <h3>Problema reale</h3>
             <p>
-              I centri hanno clienti acquisite a caro prezzo che non tornano,
-              slot vuoti, pacchetti incompleti e messaggi WhatsApp dispersi.
+              Nel beauty il problema non e solo rispondere. E non perdere il filo:
+              una cliente interessata, un pacchetto lasciato a meta, un buco di
+              domani pomeriggio, un messaggio arrivato mentre stai lavorando.
             </p>
           </div>
           <div className="light-panel">
             <h3>Promessa chiara</h3>
             <p>
-              Carichi agenda e lista clienti. In pochi minuti mostriamo opportunita,
-              messaggi pronti e valore stimato recuperabile.
+              AgendaPiena mette ordine. Ti suggerisce chi contattare, prepara un
+              messaggio curato e ti mostra quale appuntamento puo nascere da quella
+              azione.
             </p>
           </div>
         </div>
@@ -152,19 +206,35 @@ export default function Home() {
         </div>
       </section>
 
+      <section className="section" id="servizi">
+        <div className="section-title">
+          <span>Servizi inclusi</span>
+          <h2>Un modo piu elegante di tenere piena l'agenda.</h2>
+        </div>
+        <div className="service-grid">
+          {services.map((service) => (
+            <article className="service-card" key={service}>
+              <span />
+              <h3>{service}</h3>
+            </article>
+          ))}
+        </div>
+      </section>
+
       <section className="admin-section" id="admin">
         <div className="admin-copy">
           <span>Admin mobile-first</span>
-          <h2>Una cabina di regia che si usa con un pollice.</h2>
+          <h2>Tutto quello che serve, in una schermata pulita.</h2>
           <p>
-            Niente CRM pesante. Solo cosa fare oggi, quali clienti valgono di piu
-            e quali messaggi approvare per trasformare buchi in incasso.
+            Niente pannelli pesanti. Apri dal telefono e vedi cosa conta davvero:
+            clienti da ricontattare, orari da riempire, messaggi pronti e valore
+            possibile della giornata.
           </p>
           <ul>
             <li>Azioni consigliate ogni mattina</li>
-            <li>Stima euro per ogni campagna</li>
-            <li>Handoff umano quando serve</li>
-            <li>Report settimanale per vendere il ROI</li>
+            <li>Messaggi gia scritti, da approvare</li>
+            <li>Passaggio allo staff quando serve</li>
+            <li>Report chiaro a fine settimana</li>
           </ul>
         </div>
         <div className="admin-phone">
@@ -211,8 +281,8 @@ export default function Home() {
 
       <section className="section">
         <div className="section-title">
-          <span>Messaggi smart friendly</span>
-          <h2>WhatsApp personale, non newsletter.</h2>
+          <span>Tono umano</span>
+          <h2>Messaggi che sembrano scritti dal centro, non da una macchina.</h2>
         </div>
         <div className="message-grid">
           <div className="chat-bubble incoming">Ciao, volevo riprendere il laser ma non so quando.</div>
@@ -227,21 +297,54 @@ export default function Home() {
         </div>
       </section>
 
+      <section className="section comparison-section">
+        <div className="section-title">
+          <span>Prezzi e differenza</span>
+          <h2>Non sostituisce il tuo stile. Lo protegge.</h2>
+        </div>
+        <div className="comparison-table" aria-label="Confronto concorrenza">
+          {competitors.map(([name, price, focus]) => (
+            <article className={name === "AgendaPiena AI" ? "comparison-row featured-row" : "comparison-row"} key={name}>
+              <strong>{name}</strong>
+              <span>{price}</span>
+              <p>{focus}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="geo-section">
+        <div className="section-title">
+          <span>Disponibile in Italia</span>
+          <h2>Per centri che vivono di relazione, cura e appuntamenti.</h2>
+          <p>
+            Ideale per centri estetici, epilazione laser, trattamenti viso,
+            body shaping, saloni beauty e studi estetici avanzati in tutta Italia.
+          </p>
+        </div>
+        <div className="area-list" aria-label="Citta servite">
+          {localAreas.map((area) => (
+            <span key={area}>{area}</span>
+          ))}
+        </div>
+      </section>
+
       <section className="pricing" id="prezzi">
         <div>
           <span>Go-live offer</span>
-          <h2>Vendibile da subito, premium per scelta.</h2>
+          <h2>Un pilot premium, semplice da misurare.</h2>
           <p>
-            Non competiamo con tool da 19 euro. Vendiamo recupero fatturato e
-            operativita quotidiana.
+            Partiamo con un mese guidato: importiamo clienti e agenda, prepariamo
+            le prime campagne e ti facciamo vedere se AgendaPiena porta ordine,
+            appuntamenti e clienti che tornano.
           </p>
         </div>
         <article className="price-card">
           <span>Pilot 30 giorni</span>
           <strong>€790 setup + €390/mese</strong>
           <p>
-            Import clienti, dashboard mobile, 3 campagne AI, messaggi WhatsApp
-            pronti da approvare, report ROI.
+            Import clienti, analisi agenda, schermata mobile, 3 campagne AI,
+            messaggi WhatsApp pronti da approvare e report settimanale.
           </p>
           <a href="mailto:demo@agendapiena.ai">Blocca pilot</a>
         </article>
@@ -249,7 +352,7 @@ export default function Home() {
 
       <footer>
         <strong>AgendaPiena AI</strong>
-        <span>AI Growth Operator per centri beauty premium.</span>
+        <span>L'assistente AI che aiuta i centri estetici a riempire l'agenda.</span>
         <a href="mailto:demo@agendapiena.ai">demo@agendapiena.ai</a>
       </footer>
     </main>

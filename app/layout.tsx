@@ -13,18 +13,43 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AgendaPiena AI - AI Growth Operator per centri beauty",
+  title:
+    "AgendaPiena AI | Software AI WhatsApp per centri estetici premium",
   description:
-    "L'assistente AI che trova soldi nascosti in agenda, riattiva clienti ferme e prepara azioni WhatsApp per centri beauty premium.",
+    "Assistente AI premium per centri estetici in Italia: recupera clienti ferme, riempie buchi in agenda e prepara messaggi WhatsApp da approvare.",
+  keywords: [
+    "software AI centri estetici",
+    "assistente WhatsApp centri estetici",
+    "recupero clienti inattive centro estetico",
+    "AI booking beauty",
+    "gestionale AI beauty premium",
+    "campagne WhatsApp centro estetico",
+    "agenda piena centro estetico",
+    "segretaria AI beauty Italia",
+  ],
+  authors: [{ name: "AgendaPiena AI" }],
+  creator: "AgendaPiena AI",
+  publisher: "AgendaPiena AI",
+  alternates: {
+    canonical: "https://agendapiena-ai.chatgpt.app",
+  },
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
   },
   openGraph: {
+    title: "AgendaPiena AI | Recupero clienti e agenda piena per beauty",
+    description:
+      "Trova clienti ferme, orari vuoti e messaggi da inviare. Approva tutto da mobile, con il tono del tuo centro.",
+    type: "website",
+    locale: "it_IT",
+    siteName: "AgendaPiena AI",
+  },
+  twitter: {
+    card: "summary_large_image",
     title: "AgendaPiena AI",
     description:
-      "Trova slot vuoti, clienti inattive e opportunita di recupero. Approva le azioni WhatsApp da mobile.",
-    type: "website",
+      "Assistente AI premium per centri estetici: clienti ferme, orari vuoti e messaggi WhatsApp pronti da approvare.",
   },
 };
 

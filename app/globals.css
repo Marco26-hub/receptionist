@@ -363,7 +363,8 @@ h2 {
 
 .split,
 .workflow-grid,
-.message-grid {
+.message-grid,
+.service-grid {
   display: grid;
   gap: 16px;
   margin-top: 34px;
@@ -416,6 +417,32 @@ h2 {
 
 .workflow-grid {
   grid-template-columns: repeat(4, 1fr);
+}
+
+.service-grid {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.service-card {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  min-height: 150px;
+  padding: 22px;
+}
+
+.service-card span {
+  background: linear-gradient(135deg, var(--coral), var(--gold));
+  border-radius: 50%;
+  display: block;
+  height: 12px;
+  margin-bottom: 32px;
+  width: 12px;
+}
+
+.service-card h3 {
+  font-size: 20px;
+  line-height: 1.12;
 }
 
 .workflow-card {
@@ -564,6 +591,109 @@ h2 {
   justify-self: end;
 }
 
+.comparison-section {
+  padding-top: 40px;
+}
+
+.comparison-table {
+  display: grid;
+  gap: 10px;
+  margin-top: 34px;
+}
+
+.comparison-row {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 0.8fr 0.65fr 1.2fr;
+  padding: 18px;
+}
+
+.comparison-row strong {
+  font-size: 18px;
+}
+
+.comparison-row span {
+  color: #9a412d;
+  font-weight: 900;
+}
+
+.comparison-row p {
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.featured-row {
+  background: var(--night);
+  color: white;
+  transform: scale(1.01);
+}
+
+.featured-row p {
+  color: rgba(255, 255, 255, 0.76);
+}
+
+.featured-row span {
+  color: var(--mint);
+}
+
+.geo-section {
+  background: var(--night);
+  color: white;
+  margin: 40px auto;
+  max-width: 1180px;
+  overflow: hidden;
+  padding: 72px clamp(16px, 3vw, 44px);
+  position: relative;
+}
+
+.geo-section::after {
+  background: radial-gradient(circle, rgba(73, 214, 162, 0.32), transparent 62%);
+  content: "";
+  height: 360px;
+  position: absolute;
+  right: -90px;
+  top: -110px;
+  width: 360px;
+}
+
+.geo-section .section-title {
+  position: relative;
+  z-index: 1;
+}
+
+.geo-section h2 {
+  max-width: 780px;
+}
+
+.geo-section p {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 18px;
+  line-height: 1.55;
+  margin-top: 18px;
+  max-width: 720px;
+}
+
+.area-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 28px;
+  position: relative;
+  z-index: 1;
+}
+
+.area-list span {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.86);
+  padding: 10px 14px;
+}
+
 .pricing {
   align-items: stretch;
   display: grid;
@@ -655,6 +785,14 @@ footer strong {
   .workflow-grid {
     grid-template-columns: 1fr 1fr;
   }
+
+  .service-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .comparison-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 560px) {
@@ -692,6 +830,7 @@ footer strong {
   }
 
   .workflow-grid,
+  .service-grid,
   .admin-kpis {
     grid-template-columns: 1fr;
   }
