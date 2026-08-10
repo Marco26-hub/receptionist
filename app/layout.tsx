@@ -13,10 +13,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title:
-    "AgendaPiena AI | Software AI WhatsApp per centri estetici premium",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://agendapiena.ai"),
+  title: { default: "AgendaPiena AI | Più appuntamenti per centri estetici", template: "%s | AgendaPiena AI" },
   description:
-    "Assistente AI premium per centri estetici in Italia: recupera clienti ferme, riempie buchi in agenda e prepara messaggi WhatsApp da approvare.",
+    "AgendaPiena AI aiuta i centri estetici a recuperare clienti, riempire gli orari liberi e preparare messaggi WhatsApp personali.",
   keywords: [
     "software AI centri estetici",
     "assistente WhatsApp centri estetici",
@@ -30,27 +30,27 @@ export const metadata: Metadata = {
   authors: [{ name: "AgendaPiena AI" }],
   creator: "AgendaPiena AI",
   publisher: "AgendaPiena AI",
-  alternates: {
-    canonical: "https://agendapiena-ai.chatgpt.app",
-  },
+  category: "technology",
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
   },
   openGraph: {
-    title: "AgendaPiena AI | Recupero clienti e agenda piena per beauty",
+    title: "AgendaPiena AI | Più appuntamenti, meno tempo perso",
     description:
-      "Trova clienti ferme, orari vuoti e messaggi da inviare. Approva tutto da mobile, con il tono del tuo centro.",
+      "Trova clienti da ricontattare e orari da riempire. Approva messaggi WhatsApp personali direttamente dal telefono.",
     type: "website",
     locale: "it_IT",
     siteName: "AgendaPiena AI",
+    url: "/",
   },
   twitter: {
     card: "summary_large_image",
     title: "AgendaPiena AI",
     description:
-      "Assistente AI premium per centri estetici: clienti ferme, orari vuoti e messaggi WhatsApp pronti da approvare.",
+      "L’assistente AI per centri estetici che recupera clienti e riempie gli orari liberi.",
   },
+  robots: { index: true, follow: true, googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1, "max-video-preview": -1 } },
 };
 
 export default function RootLayout({
