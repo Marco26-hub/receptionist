@@ -68,6 +68,7 @@ type VoiceCall = {
 
 type TestRun = { id: string; scenario: string; status: string; input: string; output: string; checks: Array<{ label: string; passed: boolean }>; createdAt: Date };
 type Scenario = { id: string; title: string; prompt: string; expected: string };
+type KnowledgeSource = { id: string; sourceType: string; sourceName: string; characterCount: number; status: string; summary: string; createdAt: Date; appliedAt: Date | null };
 type Tab = "prepare" | "test" | "calls";
 
 type Props = {
@@ -76,6 +77,7 @@ type Props = {
     agent: Agent;
     calls: VoiceCall[];
     tests: TestRun[];
+    knowledgeSources: KnowledgeSource[];
     scenarios: Scenario[];
     requiredScenarioIds: string[];
     integrations: { retell: boolean; ai: boolean; openrouter: boolean };
@@ -97,7 +99,8 @@ export function VoiceAdmin({ initialData, categories }: Props) {
   const [callActive, setCallActive] = useState(false);
   const [knowledgeNotes, setKnowledgeNotes] = useState("");
   const [knowledgeFile, setKnowledgeFile] = useState<File | null>(null);
-  const [knowledgeProposal, setKnowledgeProposal] = useState<{ summary: string; services: VoiceService[]; faqs: VoiceFaq[]; rules: string[]; provider: string; sourceName: string } | null>(null);
+  const [knowledgeSources, setKnowledgeSources] = useState(initialData.knowledgeSources);
+  const [knowledgeProposal, setKnowledgeProposal] = useState<{ id: string; summary: string; services: VoiceService[]; faqs: VoiceFaq[]; rules: string[]; provider: string; sourceName: string } | null>(null);
   const callClient = useRef<{ stopCall: () => void } | null>(null);
   const currentCategory = useMemo(() => categories.find((item) => item.id === agent.category) || categories[0], [agent.category, categories]);
   const passedScenarios = new Set(initialData.tests.filter((test) => test.status === "passed").map((test) => test.scenario));
@@ -172,22 +175,43 @@ export function VoiceAdmin({ initialData, categories }: Props) {
       const response = await fetch("/api/admin/voice/knowledge", { method: "POST", body: form });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Analisi non riuscita");
-      setKnowledgeProposal({ ...result.proposal, sourceName: result.source.name });
+      setKnowledgeProposal({ ...result.proposal, id: result.source.id, sourceName: result.source.name });
+      setKnowledgeSources((current) => [{ id: result.source.id, sourceType: knowledgeFile ? "document" : "interview", sourceName: result.source.name, characterCount: result.source.characters, status: "review", summary: result.proposal.summary, createdAt: new Date(), appliedAt: null }, ...current]);
       setNotice("Proposta pronta. Controlla cosa verrà aggiunto prima di confermare.");
     } catch (error) { setNotice(error instanceof Error ? error.message : "Analisi non riuscita"); }
     finally { setBusy(""); }
   }
 
-  function applyKnowledge() {
+  async function applyKnowledge() {
     if (!knowledgeProposal) return;
     const services = new Map(agent.services.map((item) => [item.name.trim().toLowerCase(), item]));
     knowledgeProposal.services.forEach((item) => services.set(item.name.trim().toLowerCase(), item));
     const faqs = new Map(agent.faqs.map((item) => [item.question.trim().toLowerCase(), item]));
     knowledgeProposal.faqs.forEach((item) => faqs.set(item.question.trim().toLowerCase(), item));
     const rules = knowledgeProposal.rules.length ? `\n\nREGOLE APPROVATE DA ${knowledgeProposal.sourceName.toUpperCase()}\n- ${knowledgeProposal.rules.join("\n- ")}` : "";
-    setAgent((current) => ({ ...current, services: [...services.values()].slice(0, 50), faqs: [...faqs.values()].slice(0, 50), systemPrompt: `${current.systemPrompt}${rules}`.slice(0, 10_000), status: "draft", testMode: true }));
-    setKnowledgeProposal(null); setKnowledgeFile(null); setKnowledgeNotes("");
-    setNotice("Conoscenze aggiunte alla bozza. Controllale e premi Salva configurazione.");
+    const nextAgent = { ...agent, services: [...services.values()].slice(0, 50), faqs: [...faqs.values()].slice(0, 50), systemPrompt: `${agent.systemPrompt}${rules}`.slice(0, 10_000), status: "draft" as const, testMode: true };
+    setBusy("apply-knowledge"); setNotice("");
+    try {
+      const saved = await api("/api/admin/voice/agent", nextAgent as unknown as Record<string, unknown>);
+      const response = await fetch("/api/admin/voice/knowledge", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: knowledgeProposal.id }) });
+      if (!response.ok) throw new Error("Configurazione salvata, ma non siamo riusciti ad aggiornare lo stato del documento");
+      setAgent(saved.agent); setKnowledgeSources((current) => current.map((source) => source.id === knowledgeProposal.id ? { ...source, status: "applied", appliedAt: new Date() } : source));
+      setKnowledgeProposal(null); setKnowledgeFile(null); setKnowledgeNotes(""); setNotice("Conoscenze controllate e salvate nell’assistente.");
+    } catch (error) { setNotice(error instanceof Error ? error.message : "Applicazione non riuscita"); }
+    finally { setBusy(""); }
+  }
+
+  async function deleteKnowledgeSource(id: string) {
+    if (!window.confirm("Vuoi eliminare questa fonte dall’archivio? Le conoscenze già copiate nell’assistente restano finché non le rimuovi da servizi, FAQ o istruzioni.")) return;
+    setBusy(`delete-${id}`); setNotice("");
+    try {
+      const response = await fetch(`/api/admin/voice/knowledge?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      const result = await response.json(); if (!response.ok) throw new Error(result.error || "Eliminazione non riuscita");
+      setKnowledgeSources((current) => current.filter((source) => source.id !== id));
+      if (knowledgeProposal?.id === id) setKnowledgeProposal(null);
+      setNotice("Fonte eliminata dall’archivio.");
+    } catch (error) { setNotice(error instanceof Error ? error.message : "Eliminazione non riuscita"); }
+    finally { setBusy(""); }
   }
 
   function startDictation() {
@@ -338,7 +362,8 @@ export function VoiceAdmin({ initialData, categories }: Props) {
             <label><strong>Intervista guidata</strong><textarea value={knowledgeNotes} onChange={(event) => setKnowledgeNotes(event.target.value)} placeholder="Quali servizi offrite? Quanto durano e quanto costano? Quali orari fate? Quando deve intervenire una persona?" /><button type="button" onClick={startDictation}><Mic size={16} /> Detta le risposte</button></label>
           </div>
           <button className="voice-knowledge-analyze" disabled={Boolean(busy) || (!knowledgeFile && knowledgeNotes.trim().length < 30)} onClick={analyzeKnowledge}>{busy === "knowledge" ? <LoaderCircle className="spin" size={17} /> : <Sparkles size={17} />} Analizza e prepara la proposta</button>
-          {knowledgeProposal && <div className="voice-knowledge-proposal"><div><strong>Proposta da controllare</strong><small>{knowledgeProposal.sourceName}</small><p>{knowledgeProposal.summary}</p></div><div className="voice-knowledge-counts"><span>{knowledgeProposal.services.length} servizi</span><span>{knowledgeProposal.faqs.length} risposte</span><span>{knowledgeProposal.rules.length} regole</span></div><div className="voice-knowledge-actions"><button onClick={applyKnowledge}><Check size={16} /> Applica alla bozza</button><button className="secondary" onClick={() => setKnowledgeProposal(null)}>Scarta</button></div></div>}
+          {knowledgeProposal && <div className="voice-knowledge-proposal"><div><strong>Proposta da controllare</strong><small>{knowledgeProposal.sourceName}</small><p>{knowledgeProposal.summary}</p></div><div className="voice-knowledge-counts"><span>{knowledgeProposal.services.length} servizi</span><span>{knowledgeProposal.faqs.length} risposte</span><span>{knowledgeProposal.rules.length} regole</span></div><div className="voice-knowledge-actions"><button disabled={Boolean(busy)} onClick={applyKnowledge}>{busy === "apply-knowledge" ? <LoaderCircle className="spin" size={16} /> : <Check size={16} />} Controlla e salva</button><button className="secondary" onClick={() => setKnowledgeProposal(null)}>Scarta</button></div></div>}
+          {knowledgeSources.length > 0 && <div className="voice-knowledge-library"><strong>Fonti archiviate</strong>{knowledgeSources.map((source) => <div key={source.id}><FileText size={16} /><span><b>{source.sourceName}</b><small>{source.summary} · {new Date(source.createdAt).toLocaleDateString("it-IT")}</small></span><em className={source.status}>{source.status === "applied" ? "Applicata" : "Da controllare"}</em><button disabled={Boolean(busy)} title="Elimina fonte" onClick={() => deleteKnowledgeSource(source.id)}>{busy === `delete-${source.id}` ? <LoaderCircle className="spin" size={15} /> : <Trash2 size={15} />}</button></div>)}</div>}
         </section>
 
         <div className="voice-list-heading"><div><span>Servizi modificabili</span><h2>Cosa può prenotare</h2><p>Questi sono esempi di partenza. Aggiungi i servizi reali, correggi durata e prezzo oppure elimina quelli che non offri.</p></div><button title="Aggiungi servizio" onClick={addService}><Plus size={18} /></button></div>

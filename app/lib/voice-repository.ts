@@ -8,6 +8,7 @@ import {
   voiceAgents,
   voiceAgentVersions,
   voiceCalls,
+  voiceKnowledgeSources,
   voiceTestRuns,
   type VoiceFaq,
   type VoiceService,
@@ -65,6 +66,7 @@ export async function getVoiceAdminData(organizationId: string) {
       agent: demoVoiceAgent,
       calls: demoVoiceCalls,
       tests: [],
+      knowledgeSources: [],
       scenarios: voiceScenarios,
       requiredScenarioIds: requiredVoiceScenarioIds,
       integrations: { retell: false, ai: false, openrouter: false },
@@ -87,9 +89,10 @@ export async function getVoiceAdminData(organizationId: string) {
     }).returning();
   }
 
-  const [storedCalls, tests] = await Promise.all([
+  const [storedCalls, tests, knowledgeSources] = await Promise.all([
     db.select().from(voiceCalls).where(eq(voiceCalls.organizationId, organizationId)).orderBy(desc(voiceCalls.createdAt)).limit(30),
     db.select().from(voiceTestRuns).where(eq(voiceTestRuns.organizationId, organizationId)).orderBy(desc(voiceTestRuns.createdAt)).limit(20),
+    db.select({ id: voiceKnowledgeSources.id, sourceType: voiceKnowledgeSources.sourceType, sourceName: voiceKnowledgeSources.sourceName, characterCount: voiceKnowledgeSources.characterCount, status: voiceKnowledgeSources.status, summary: voiceKnowledgeSources.summary, createdAt: voiceKnowledgeSources.createdAt, appliedAt: voiceKnowledgeSources.appliedAt }).from(voiceKnowledgeSources).where(eq(voiceKnowledgeSources.organizationId, organizationId)).orderBy(desc(voiceKnowledgeSources.createdAt)).limit(50),
   ]);
 
   return {
@@ -97,6 +100,7 @@ export async function getVoiceAdminData(organizationId: string) {
     agent: { ...agent, greeting: safeVoiceGreeting(agent.language, organization.name, agent.greeting) },
     calls: storedCalls.map(({ recordingUrl, ...call }) => ({ ...call, hasRecording: Boolean(recordingUrl) })),
     tests,
+    knowledgeSources,
     scenarios: voiceScenarios,
     requiredScenarioIds: requiredVoiceScenarioIds,
     integrations: {
@@ -106,6 +110,34 @@ export async function getVoiceAdminData(organizationId: string) {
     },
     mode: "live" as const,
   };
+}
+
+export async function saveVoiceKnowledgeSource(input: { organizationId: string; sourceType: string; sourceName: string; checksum: string; characterCount: number; proposal: typeof voiceKnowledgeSources.$inferInsert.proposal; actorEmail: string }) {
+  if (!isDatabaseConfigured()) return { id: `demo-source-${Date.now()}`, status: "review", demo: true };
+  const db = getDb();
+  const agent = await db.query.voiceAgents.findFirst({ where: eq(voiceAgents.organizationId, input.organizationId) });
+  if (!agent) throw new ValidationError("Assistente non trovato");
+  const existing = await db.query.voiceKnowledgeSources.findFirst({ where: and(eq(voiceKnowledgeSources.organizationId, input.organizationId), eq(voiceKnowledgeSources.checksum, input.checksum)) });
+  if (existing) throw new ValidationError("Questo documento è già presente nell’archivio");
+  const [saved] = await db.insert(voiceKnowledgeSources).values({ organizationId: input.organizationId, agentId: agent.id, sourceType: input.sourceType, sourceName: input.sourceName, checksum: input.checksum, characterCount: input.characterCount, summary: input.proposal.summary, proposal: input.proposal, createdBy: input.actorEmail }).returning();
+  await db.insert(auditLogs).values({ organizationId: input.organizationId, actorEmail: input.actorEmail, action: "voice.knowledge.created", entityType: "voice_knowledge", entityId: saved.id, metadata: { sourceName: input.sourceName, characterCount: input.characterCount } });
+  return { ...saved, demo: false };
+}
+
+export async function applyVoiceKnowledgeSource(organizationId: string, sourceId: string, actorEmail: string) {
+  if (!isDatabaseConfigured()) return { ok: true, status: "applied", demo: true };
+  const [saved] = await getDb().update(voiceKnowledgeSources).set({ status: "applied", appliedAt: new Date(), updatedAt: new Date() }).where(and(eq(voiceKnowledgeSources.id, sourceId), eq(voiceKnowledgeSources.organizationId, organizationId))).returning({ id: voiceKnowledgeSources.id });
+  if (!saved) throw new ValidationError("Fonte non trovata");
+  await getDb().insert(auditLogs).values({ organizationId, actorEmail, action: "voice.knowledge.applied", entityType: "voice_knowledge", entityId: saved.id });
+  return { ok: true, status: "applied", demo: false };
+}
+
+export async function deleteVoiceKnowledgeSource(organizationId: string, sourceId: string, actorEmail: string) {
+  if (!isDatabaseConfigured()) return { ok: true, demo: true };
+  const [deleted] = await getDb().delete(voiceKnowledgeSources).where(and(eq(voiceKnowledgeSources.id, sourceId), eq(voiceKnowledgeSources.organizationId, organizationId))).returning({ id: voiceKnowledgeSources.id });
+  if (!deleted) throw new ValidationError("Fonte non trovata");
+  await getDb().insert(auditLogs).values({ organizationId, actorEmail, action: "voice.knowledge.deleted", entityType: "voice_knowledge", entityId: deleted.id });
+  return { ok: true, demo: false };
 }
 
 export async function saveVoiceAgent(organizationId: string, input: VoiceAgentInput, actorEmail: string) {

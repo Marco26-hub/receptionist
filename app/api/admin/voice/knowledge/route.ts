@@ -1,9 +1,10 @@
 import { PDFParse } from "pdf-parse";
+import { createHash } from "node:crypto";
 import { requireApiAdmin } from "../../../../lib/api-auth";
 import { getOrganizationSettings } from "../../../../lib/repository";
 import { analyzeVoiceKnowledge } from "../../../../lib/voice-ai";
-import { getVoiceAdminData } from "../../../../lib/voice-repository";
-import { jsonError, ValidationError } from "../../../../lib/validation";
+import { applyVoiceKnowledgeSource, deleteVoiceKnowledgeSource, getVoiceAdminData, saveVoiceKnowledgeSource } from "../../../../lib/voice-repository";
+import { jsonError, readJson, requiredText, ValidationError } from "../../../../lib/validation";
 
 export const runtime = "nodejs";
 
@@ -28,6 +29,23 @@ export async function POST(request: Request) {
     if (text.length > 60_000) text = text.slice(0, 60_000);
     const [voice, settings] = await Promise.all([getVoiceAdminData(auth.session.organizationId), getOrganizationSettings(auth.session.organizationId)]);
     const proposal = await analyzeVoiceKnowledge({ businessName: settings.organization.name, language: voice.agent.language, sourceName, text });
-    return Response.json({ ok: true, source: { name: sourceName, characters: text.length }, proposal });
+    const source = await saveVoiceKnowledgeSource({ organizationId: auth.session.organizationId, sourceType: file instanceof File && file.size ? "document" : "interview", sourceName, checksum: createHash("sha256").update(text).digest("hex"), characterCount: text.length, proposal, actorEmail: auth.session.email });
+    return Response.json({ ok: true, source: { id: source.id, name: sourceName, characters: text.length }, proposal });
+  } catch (error) { return jsonError(error); }
+}
+
+export async function PUT(request: Request) {
+  const auth = await requireApiAdmin(request); if (auth.response) return auth.response;
+  try {
+    const body = await readJson(request);
+    return Response.json(await applyVoiceKnowledgeSource(auth.session.organizationId, requiredText(body.id, "Fonte", 100), auth.session.email));
+  } catch (error) { return jsonError(error); }
+}
+
+export async function DELETE(request: Request) {
+  const auth = await requireApiAdmin(request); if (auth.response) return auth.response;
+  try {
+    const id = requiredText(new URL(request.url).searchParams.get("id"), "Fonte", 100);
+    return Response.json(await deleteVoiceKnowledgeSource(auth.session.organizationId, id, auth.session.email));
   } catch (error) { return jsonError(error); }
 }

@@ -186,6 +186,25 @@ export const voiceAgentVersions = pgTable("voice_agent_versions", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [uniqueIndex("voice_agent_versions_unique_idx").on(table.agentId, table.version), index("voice_agent_versions_org_idx").on(table.organizationId, table.createdAt)]);
 
+export type VoiceKnowledgeProposal = { summary: string; services: VoiceService[]; faqs: VoiceFaq[]; rules: string[]; provider: string };
+
+export const voiceKnowledgeSources = pgTable("voice_knowledge_sources", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id").references(() => organizations.id, { onDelete: "cascade" }).notNull(),
+  agentId: uuid("agent_id").references(() => voiceAgents.id, { onDelete: "cascade" }).notNull(),
+  sourceType: text("source_type").notNull(),
+  sourceName: text("source_name").notNull(),
+  checksum: text("checksum").notNull(),
+  characterCount: integer("character_count").notNull(),
+  status: text("status").default("review").notNull(),
+  summary: text("summary").notNull(),
+  proposal: jsonb("proposal").$type<VoiceKnowledgeProposal>().notNull(),
+  createdBy: text("created_by").notNull(),
+  appliedAt: timestamp("applied_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [uniqueIndex("voice_knowledge_org_checksum_idx").on(table.organizationId, table.checksum), index("voice_knowledge_org_created_idx").on(table.organizationId, table.createdAt)]);
+
 export const voiceCalls = pgTable("voice_calls", {
   id: uuid("id").defaultRandom().primaryKey(),
   organizationId: uuid("organization_id").references(() => organizations.id, { onDelete: "cascade" }).notNull(),
