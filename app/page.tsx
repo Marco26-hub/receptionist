@@ -69,7 +69,15 @@ export default function Home() {
       <JsonLd data={schemas} />
       <div className="home-hero">
         <div className="cinematic-media" aria-hidden="true">
-          <Image src="/agendapiena-luxury-receptionist.png" alt="" fill priority sizes="100vw" />
+          <Image
+            src="/agendapiena-receptionist-hero-v1.webp"
+            alt=""
+            fill
+            priority
+            fetchPriority="high"
+            sizes="100vw"
+            unoptimized
+          />
           <div className="cinematic-vignette" />
           <div className="cinematic-light" />
           <div className="film-grain" />
