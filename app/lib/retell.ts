@@ -141,6 +141,9 @@ export async function syncAndPublishRetellAgent(input: { agentId: string; name: 
   });
   const languageRule = voiceLanguageRule(input.language);
   const greeting = safeVoiceGreeting(input.language, input.name, input.greeting);
+  const recordingRule = input.recordingEnabled
+    ? "- All'inizio della chiamata, subito dopo esserti presentata, informa chiaramente che la chiamata viene registrata. Se la persona non acconsente, non proseguire con la registrazione e coinvolgi lo staff."
+    : "- Non affermare che la chiamata viene registrata: la registrazione audio è disattivata.";
   await retellRequest(`/update-retell-llm/${encodeURIComponent(agent.response_engine.llm_id)}`, {
     method: "PATCH",
     body: JSON.stringify({
@@ -150,7 +153,7 @@ export async function syncAndPublishRetellAgent(input: { agentId: string; name: 
       tool_call_strict_mode: true,
       start_speaker: "agent",
       begin_message: greeting,
-      general_prompt: `${input.systemPrompt}\n\n${languageRule}\nREGOLE OPERATIVE\n- Per un nuovo appuntamento usa prima controlla_disponibilita e poi prenota_appuntamento, soltanto dopo la conferma esplicita.\n- Per spostare o annullare usa prima trova_appuntamenti e verifica nome e telefono.\n- Per spostare controlla anche la nuova disponibilità e chiedi conferma prima di usare sposta_appuntamento.\n- Non dire mai che una prenotazione è creata, spostata o annullata finché lo strumento non restituisce esito positivo.\n- Se mancano dati, il servizio non è riconosciuto o uno strumento fallisce, coinvolgi lo staff.` + knowledgeText(input.services, input.faqs),
+      general_prompt: `${input.systemPrompt}\n\n${languageRule}\nREGOLE OPERATIVE\n${recordingRule}\n- Per un nuovo appuntamento usa prima controlla_disponibilita e poi prenota_appuntamento, soltanto dopo la conferma esplicita.\n- Per spostare o annullare usa prima trova_appuntamenti e verifica nome e telefono.\n- Per spostare controlla anche la nuova disponibilità e chiedi conferma prima di usare sposta_appuntamento.\n- Non dire mai che una prenotazione è creata, spostata o annullata finché lo strumento non restituisce esito positivo.\n- Se mancano dati, il servizio non è riconosciuto o uno strumento fallisce, coinvolgi lo staff.` + knowledgeText(input.services, input.faqs),
       general_tools: tools,
     }),
   });

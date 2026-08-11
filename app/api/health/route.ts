@@ -15,11 +15,20 @@ export async function GET(request: Request) {
     authProvider: Boolean((process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) || (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD)),
     legal: Boolean(process.env.LEGAL_COMPANY_NAME && process.env.LEGAL_VAT_NUMBER && process.env.LEGAL_ADDRESS && process.env.LEGAL_EMAIL),
     publicUrl: Boolean(process.env.NEXT_PUBLIC_SITE_URL?.startsWith("https://")),
+    monitoring: Boolean(process.env.SENTRY_DSN || process.env.HEALTHCHECK_MONITOR_URL),
+    backupPolicy: Boolean(process.env.BACKUP_POLICY_CONFIRMED === "true"),
   };
   let databaseReachable = !checks.database;
   if (checks.database && new URL(request.url).searchParams.get("deep") === "1") {
     try { await getDb().execute(sql`select 1`); databaseReachable = true; } catch { databaseReachable = false; }
   } else if (checks.database) databaseReachable = true;
-  const coreReady = checks.database && checks.session && checks.authProvider && checks.whatsapp && checks.cron && checks.legal && checks.publicUrl && databaseReachable;
-  return Response.json({ status: production ? coreReady ? "ready" : "degraded" : "development", version: "2.0.0", checks: { ...checks, databaseReachable } }, { status: production && !coreReady ? 503 : 200, headers: { "Cache-Control": "no-store" } });
+  const commonReady = checks.database && checks.session && checks.authProvider && checks.legal && checks.publicUrl && checks.monitoring && checks.backupPolicy && databaseReachable;
+  const readiness = {
+    platform: commonReady,
+    agenda: commonReady && checks.cron,
+    whatsapp: commonReady && checks.cron && checks.whatsapp,
+    voice: commonReady && checks.voice && checks.voiceAi,
+    payments: commonReady && checks.payments,
+  };
+  return Response.json({ status: production ? readiness.platform ? "ready" : "degraded" : "development", version: "2.1.0", readiness, checks: { ...checks, databaseReachable } }, { status: production && !readiness.platform ? 503 : 200, headers: { "Cache-Control": "no-store" } });
 }

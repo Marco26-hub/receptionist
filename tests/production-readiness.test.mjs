@@ -54,7 +54,9 @@ test("includes data ingestion, conversion, settings and explicit AI privacy opt-
   assert.match(ai, /AI_DRAFTS_ENABLED/);
   assert.match(directSend, /status: 410/);
   assert.match(health, /WHATSAPP_TEMPLATE_NAME/);
-  assert.match(health, /status: production && !coreReady \? 503 : 200/);
+  assert.match(health, /status: production && !readiness\.platform \? 503 : 200/);
+  assert.match(health, /voice: commonReady && checks\.voice && checks\.voiceAi/);
+  assert.match(health, /payments: commonReady && checks\.payments/);
 });
 
 test("supports Supabase Auth without exposing the provider token to the browser", async () => {

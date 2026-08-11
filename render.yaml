@@ -55,6 +55,12 @@ services:
         sync: false
       - key: STRIPE_WEBHOOK_SECRET
         sync: false
+      - key: SENTRY_DSN
+        sync: false
+      - key: HEALTHCHECK_MONITOR_URL
+        sync: false
+      - key: BACKUP_POLICY_CONFIRMED
+        value: "false"
       - key: LEGAL_COMPANY_NAME
         value: Social Automation di Marco Dibenedetto
       - key: LEGAL_VAT_NUMBER
