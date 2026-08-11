@@ -2,9 +2,9 @@
 
 ## Stato
 
-AgendaPiena AI è stato migrato da uno starter Cloudflare/vinext a Next.js 16 standard, pronto per Vercel. Il backend funziona in modalità demo senza servizi esterni e passa automaticamente alla modalità live quando viene configurato PostgreSQL.
+AgendaPiena AI usa Next.js 16 su Vercel e PostgreSQL su Supabase o Neon. Il motore operativo 2.0 funziona in modalità demo senza servizi esterni e passa alla modalità live quando vengono configurati database, autenticazione e WhatsApp.
 
-Commit principale: `9087938` (`Build production SaaS backend and luxury experience`).
+La procedura aggiornata di rilascio è in `GO_LIVE.md`.
 
 ## Prodotto
 
@@ -39,7 +39,9 @@ Workflow:
 - Messaggi: Meta WhatsApp Cloud API e webhook firmato.
 - Pagamenti: Stripe Checkout e webhook firmato.
 - Automazione: Vercel Cron alle 06:00 UTC.
-- Autenticazione MVP: sessione HMAC in cookie HTTP-only con credenziali da environment.
+- Autenticazione: Supabase Auth multi-cliente oppure accesso singolo da environment, con sessione HMAC in cookie HTTP-only.
+- Importazione: clienti da CSV e inserimento manuale di clienti/appuntamenti.
+- Readiness: `npm run check:env` e `GET /api/health?deep=1`.
 
 ## File chiave
 
@@ -50,6 +52,8 @@ Workflow:
 - `app/lib/ai.ts`: generazione bozze.
 - `app/lib/whatsapp.ts`: invio WhatsApp.
 - `app/components/AdminDashboard.tsx`: area operativa.
+- `app/admin/impostazioni`: orari, valore medio, tono e stato integrazioni.
+- `GO_LIVE.md`: procedura completa di pubblicazione.
 - `app/api/`: endpoint applicativi e webhook.
 - `.env.example`: variabili richieste.
 - `scripts/seed.mjs`: inizializzazione del primo centro.
@@ -90,6 +94,10 @@ La password demo non è disponibile in produzione se `ADMIN_PASSWORD` non viene 
 - generazione bozza fallback: verificata.
 - cron ottimizzazione: verificato.
 - approvazione e invio demo: verificati.
+- isolamento dati per organizzazione: verificato.
+- protezione origine sulle API sensibili: verificata.
+- autenticazione Supabase opzionale: inclusa.
+- importazione, conversione e readiness gate: inclusi.
 
 ## Prima del go-live
 

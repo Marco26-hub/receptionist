@@ -1,5 +1,6 @@
 import { createAdminSession } from "../../../lib/auth";
-import { safeEqual } from "../../../lib/security";
+import { authenticateIdentity } from "../../../lib/identity-provider";
+import { resolveAdminIdentity } from "../../../lib/repository";
 import { jsonError, readJson, requiredText, validEmail } from "../../../lib/validation";
 
 export async function POST(request: Request) {
@@ -7,11 +8,10 @@ export async function POST(request: Request) {
     const body = await readJson(request);
     const email = validEmail(body.email);
     const password = requiredText(body.password, "Password", 200);
-    const configuredEmail = (process.env.ADMIN_EMAIL || "demo@agendapiena.ai").toLowerCase();
-    const configuredPassword = process.env.ADMIN_PASSWORD || (process.env.NODE_ENV === "production" ? "" : "AgendaPienaDemo2026!");
-    if (!configuredPassword || !safeEqual(email, configuredEmail) || !safeEqual(password, configuredPassword)) return Response.json({ ok: false, error: "Credenziali non valide" }, { status: 401 });
-    await createAdminSession(email);
+    if (!(await authenticateIdentity(email, password))) return Response.json({ ok: false, error: "Credenziali non valide" }, { status: 401 });
+    const identity = await resolveAdminIdentity(email);
+    if (!identity) return Response.json({ ok: false, error: "Utente non associato a un'attività" }, { status: 403 });
+    await createAdminSession({ email, ...identity });
     return Response.json({ ok: true });
   } catch (error) { return jsonError(error); }
 }
-

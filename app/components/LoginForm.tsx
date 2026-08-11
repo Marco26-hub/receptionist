@@ -13,6 +13,6 @@ export function LoginForm({ returnTo = "/admin" }: { returnTo?: string }) {
     if (!response.ok) { setError(result.error || "Accesso non riuscito"); setLoading(false); return; }
     window.location.href = returnTo.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "/admin";
   }
-  return <form className="auth-form" onSubmit={submit}><div className="auth-icon"><LockKeyhole size={20} /></div><label>Email<input name="email" type="email" autoComplete="email" defaultValue="demo@agendapiena.ai" required /></label><label>Password<input name="password" type="password" autoComplete="current-password" placeholder="La tua password" required /></label>{error && <p className="form-error" role="alert">{error}</p>}<button disabled={loading}>{loading ? "Accesso…" : "Entra nell’atelier"}<ArrowRight size={17} /></button><small>In locale: demo@agendapiena.ai / AgendaPienaDemo2026!</small></form>;
+  const development = process.env.NODE_ENV !== "production";
+  return <form className="auth-form" onSubmit={submit}><div className="auth-icon"><LockKeyhole size={20} /></div><label>Email<input name="email" type="email" autoComplete="email" defaultValue={development ? "demo@agendapiena.ai" : ""} required /></label><label>Password<input name="password" type="password" autoComplete="current-password" placeholder="La tua password" required /></label>{error && <p className="form-error" role="alert">{error}</p>}<button disabled={loading}>{loading ? "Accesso…" : "Entra nell’atelier"}<ArrowRight size={17} /></button>{development && <small>In locale: demo@agendapiena.ai / AgendaPienaDemo2026!</small>}</form>;
 }
-

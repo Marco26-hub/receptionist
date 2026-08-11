@@ -2,14 +2,16 @@
 /* eslint-disable @next/next/no-html-link-for-pages */
 import { useMemo, useState } from "react";
 import {
-  Bell,
   CalendarDays,
+  CalendarCheck,
   Check,
   ChevronRight,
   CircleDollarSign,
   LogOut,
   MessageSquareText,
+  RefreshCw,
   Search,
+  Settings,
   Sparkles,
   UsersRound,
   X,
@@ -81,6 +83,8 @@ export function AdminDashboard({ initialData, userEmail }: DashboardProps) {
     setBusy(true);
     const response = await fetch(`/api/admin/opportunities/${id}/${action}`, {
       method: "POST",
+      headers: action === "approve" ? { "Content-Type": "application/json" } : undefined,
+      body: action === "approve" ? JSON.stringify({ body: selected?.message }) : undefined,
     });
     const result = await response.json();
     setBusy(false);
@@ -100,12 +104,6 @@ export function AdminDashboard({ initialData, userEmail }: DashboardProps) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         opportunityId: selected.id,
-        organizationId: initialData.organization.id,
-        customerId: selected.customerId,
-        firstName: selected.customerName.split(" ")[0],
-        reason: selected.reason,
-        toneOfVoice: "Caldo, elegante e discreto",
-        centerName: initialData.organization.name,
       }),
     });
     const result = await response.json();
@@ -120,6 +118,21 @@ export function AdminDashboard({ initialData, userEmail }: DashboardProps) {
         `Nuova bozza creata con ${result.provider === "openai" ? "AI" : "modello sicuro"}.`,
       );
     } else setNotice(result.error);
+  }
+  async function optimizeNow() {
+    setBusy(true); setNotice("");
+    const response = await fetch("/api/admin/optimize", { method: "POST" });
+    const result = await response.json(); setBusy(false);
+    if (!response.ok) return setNotice(result.error || "Analisi non riuscita");
+    setNotice(`${result.created} nuove opportunità trovate.`);
+    setTimeout(() => window.location.reload(), 700);
+  }
+  async function markConverted() {
+    if (!selected) return; setBusy(true);
+    const response = await fetch(`/api/admin/opportunities/${selected.id}/convert`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+    const result = await response.json(); setBusy(false);
+    if (!response.ok) return setNotice(result.error || "Operazione non riuscita");
+    setOpportunities((items) => items.filter((item) => item.id !== selected.id)); setSelected(null); setNotice("Prenotazione recuperata registrata.");
   }
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -175,6 +188,10 @@ export function AdminDashboard({ initialData, userEmail }: DashboardProps) {
             <MessageSquareText size={18} />
             Messaggi
           </a>
+          <a href="/admin/impostazioni">
+            <Settings size={18} />
+            Impostazioni
+          </a>
         </nav>
         <div className="admin-account">
           <span>{userEmail.slice(0, 1).toUpperCase()}</span>
@@ -197,8 +214,9 @@ export function AdminDashboard({ initialData, userEmail }: DashboardProps) {
             </span>
             <h1>Buongiorno. Ecco dove agire oggi.</h1>
           </div>
-          <button className="icon-button" title="Notifiche">
-            <Bell size={19} />
+          <button className="optimize-button" onClick={optimizeNow} disabled={busy}>
+            <RefreshCw size={17} />
+            Analizza ora
           </button>
         </header>
         <section className="metric-grid">
@@ -278,7 +296,7 @@ export function AdminDashboard({ initialData, userEmail }: DashboardProps) {
                     </p>
                   </div>
                 </div>
-                <label className="message-editor">
+                {selected.status === "sent" ? <div className="conversion-box"><CalendarCheck size={20} /><div><strong>Messaggio inviato</strong><p>Quando il cliente prenota, registra il risultato per aggiornare il tasso di conversione.</p></div><button onClick={markConverted} disabled={busy}>Segna prenotato</button></div> : <><label className="message-editor">
                   Bozza WhatsApp
                   <textarea
                     value={selected.message}
@@ -317,6 +335,7 @@ export function AdminDashboard({ initialData, userEmail }: DashboardProps) {
                     Approva e invia
                   </button>
                 </div>
+                </>}
               </>
             ) : (
               <div className="empty-decision">

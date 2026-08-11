@@ -6,7 +6,7 @@ function fallbackDraft(input: DraftInput) {
 }
 
 export async function generateWhatsAppDraft(input: DraftInput) {
-  if (!process.env.OPENAI_API_KEY) return { body: fallbackDraft(input), provider: "template" as const };
+  if (!process.env.OPENAI_API_KEY || process.env.AI_DRAFTS_ENABLED !== "true") return { body: fallbackDraft(input), provider: "template" as const };
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
@@ -23,4 +23,3 @@ export async function generateWhatsAppDraft(input: DraftInput) {
   const body = data.output_text || data.output?.flatMap((item) => item.content || []).map((item) => item.text || "").join("").trim();
   return { body: body || fallbackDraft(input), provider: "openai" as const };
 }
-

@@ -1,4 +1,4 @@
-export const demoOrganization = { id: "demo-org", name: "Maison Élan Milano", city: "Milano", toneOfVoice: "Caldo, elegante e discreto" };
+export const demoOrganization = { id: "demo-org", name: "Maison Élan Milano", city: "Milano", toneOfVoice: "Caldo, elegante e discreto", averageTicketCents: 12000, settings: { openingHour: 9, closingHour: 19, slotMinutes: 60, workingDays: [1, 2, 3, 4, 5, 6] } };
 
 export const demoOpportunities = [
   { id: "opp-1", customerId: "cus-1", customerName: "Martina R.", phone: "+39 333 000 0001", type: "inactive_client", title: "Riprendi il percorso laser", reason: "Ultima visita 94 giorni fa · 4 sedute completate", score: 92, estimatedValueCents: 42000, status: "new", message: "Ciao Martina, come stai? È passato un po’ di tempo dall’ultima seduta. Se vuoi riprendere il percorso, questa settimana abbiamo una disponibilità adatta a te. Vuoi che ti mandi gli orari?" },
@@ -7,4 +7,3 @@ export const demoOpportunities = [
 ];
 
 export const demoMetrics = { potentialValueCents: 229000, activeOpportunities: 33, emptySlots: 4, messagesToApprove: 12, conversionRate: 18 };
-
