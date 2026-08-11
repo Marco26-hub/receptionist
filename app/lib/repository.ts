@@ -281,14 +281,23 @@ async function createEmptySlotOpportunities(organization: typeof organizations.$
   const workingDays = Array.isArray(settings.workingDays) ? settings.workingDays : [1, 2, 3, 4, 5, 6];
   const now = new Date();
   const horizon = new Date(now.getTime() + 7 * DAY_MS);
+  const [activeSlots] = await getDb().select({ count: sql<number>`count(*)` }).from(opportunities).where(and(
+    eq(opportunities.organizationId, organization.id),
+    eq(opportunities.type, "empty_slot"),
+    inArray(opportunities.status, [...ACTIVE_OPPORTUNITY_STATUSES, "sent"]),
+    gte(opportunities.recommendedAt, now),
+    lte(opportunities.recommendedAt, horizon),
+  ));
+  const remainingSlots = Math.max(0, 5 - Number(activeSlots?.count || 0));
+  if (!remainingSlots) return 0;
   const booked = await getDb().select().from(appointments).where(and(eq(appointments.organizationId, organization.id), gte(appointments.startsAt, now), lte(appointments.startsAt, horizon), inArray(appointments.status, ["confirmed", "pending"])));
   const candidates = customerRows.filter((item) => item.marketingConsent && !item.doNotContact && item.lastVisitAt).sort((a, b) => b.lifetimeValueCents - a.lifetimeValueCents);
   let created = 0;
-  for (let day = 1; day <= 7 && created < 5; day += 1) {
+  for (let day = 1; day <= 7 && created < remainingSlots; day += 1) {
     const date = new Date(now); date.setDate(now.getDate() + day); date.setHours(openingHour, 0, 0, 0);
     if (!workingDays.includes(date.getDay())) continue;
     const close = new Date(date); close.setHours(closingHour, 0, 0, 0);
-    for (let slot = new Date(date); slot.getTime() + slotMinutes * 60_000 <= close.getTime() && created < 5; slot = new Date(slot.getTime() + slotMinutes * 60_000)) {
+    for (let slot = new Date(date); slot.getTime() + slotMinutes * 60_000 <= close.getTime() && created < remainingSlots; slot = new Date(slot.getTime() + slotMinutes * 60_000)) {
       const slotEnd = new Date(slot.getTime() + slotMinutes * 60_000);
       if (booked.some((appointment) => appointment.startsAt < slotEnd && appointment.endsAt > slot)) continue;
       const customer = candidates[(day + created) % Math.max(1, candidates.length)];

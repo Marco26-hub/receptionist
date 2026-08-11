@@ -82,3 +82,13 @@ test("ships Render, Neon and free scheduled optimization configuration", async (
   assert.match(workflow, /api\/cron\/optimize/);
   assert.match(workflow, /secrets\.CRON_SECRET/);
 });
+
+test("uses the public checkout origin and keeps optimization reruns bounded", async () => {
+  const [checkout, repository] = await Promise.all([
+    read("app/api/checkout/route.ts"),
+    read("app/lib/repository.ts"),
+  ]);
+  assert.match(checkout, /process\.env\.NEXT_PUBLIC_SITE_URL/);
+  assert.match(repository, /const remainingSlots = Math\.max\(0, 5 - Number/);
+  assert.match(repository, /created < remainingSlots/);
+});
