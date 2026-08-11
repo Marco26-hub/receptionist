@@ -297,6 +297,7 @@ h1,h2,h3,p { margin:0; }
 .voice-fields input,.voice-fields select,.voice-fields textarea,.voice-config-side>label>input,.voice-advanced input,.voice-advanced textarea,.voice-faq-editor input,.voice-faq-editor textarea,.voice-customer-line textarea { background:transparent; border:1px solid var(--line); border-radius:0; color:var(--ink); font:inherit; font-size:14px; outline:none; padding:11px; width:100%; }
 .voice-fields textarea { min-height:78px; resize:vertical; }.voice-fields input:focus,.voice-fields textarea:focus,.voice-advanced input:focus,.voice-advanced textarea:focus { border-color:#9d7b43; }
 .voice-list-heading { align-items:end; border-top:1px solid var(--line); display:flex; justify-content:space-between; margin-top:34px; padding-top:27px; }
+.voice-list-heading p { color:var(--muted); font-size:12px; line-height:1.5; margin-top:8px; max-width:620px; }
 .voice-list-heading>button { background:#11120f; border:0; color:white; cursor:pointer; display:grid; height:40px; place-items:center; width:40px; }
 .voice-service-list,.voice-faq-editor { display:grid; gap:7px; margin-top:16px; }
 .voice-service-row { align-items:center; background:#f0ede6; display:grid; gap:8px; grid-template-columns:minmax(160px,1fr) 115px 105px 36px; padding:8px; }

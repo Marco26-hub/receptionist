@@ -70,10 +70,12 @@ type Tab = "prepare" | "test" | "calls";
 
 type Props = {
   initialData: {
+    businessName: string;
     agent: Agent;
     calls: VoiceCall[];
     tests: TestRun[];
     scenarios: Scenario[];
+    requiredScenarioIds: string[];
     integrations: { retell: boolean; ai: boolean; openrouter: boolean };
     mode: "demo" | "live";
   };
@@ -93,21 +95,23 @@ export function VoiceAdmin({ initialData, categories }: Props) {
   const [callActive, setCallActive] = useState(false);
   const callClient = useRef<{ stopCall: () => void } | null>(null);
   const currentCategory = useMemo(() => categories.find((item) => item.id === agent.category) || categories[0], [agent.category, categories]);
-  const hasPassedTest = initialData.tests.some((test) => test.status === "passed") || Boolean(testResult?.checks.every((check) => check.passed));
+  const passedScenarios = new Set(initialData.tests.filter((test) => test.status === "passed").map((test) => test.scenario));
+  if (testResult?.checks.every((check) => check.passed)) passedScenarios.add(selectedScenario.id);
+  const passedRequiredTests = initialData.requiredScenarioIds.filter((scenario) => passedScenarios.has(scenario)).length;
+  const hasPassedTest = passedRequiredTests === initialData.requiredScenarioIds.length;
   const retellConnected = initialData.integrations.retell && Boolean(agent.retellAgentId);
   const phoneReady = retellConnected && Boolean(agent.retellPhoneNumber);
 
   function updateAgent<K extends keyof Agent>(key: K, value: Agent[K]) { setAgent((current) => ({ ...current, [key]: value })); }
 
   function changeLanguage(language: string) {
+    const businessName = initialData.businessName;
     setAgent((current) => ({
       ...current,
       language,
       greeting: language === "en-US"
-        ? "Hello, I’m the virtual assistant for your business. How can I help?"
-        : language.includes(",")
-          ? "Buongiorno, hello. Sono l’assistente virtuale dell’attività. Come posso aiutarti? How can I help?"
-          : "Buongiorno, sono l’assistente virtuale dell’attività. Come posso aiutarti?",
+        ? `Hello, I’m the virtual assistant for ${businessName}. How can I help?`
+        : `Buongiorno, sono l’assistente virtuale di ${businessName}. Come posso aiutarla?`,
     }));
     setNotice(language.includes(",") ? "Riconoscimento automatico attivo: ascolta la lingua della persona e risponde in italiano o inglese." : "Lingua aggiornata. Controlla il saluto prima di salvare.");
   }
@@ -251,7 +255,7 @@ export function VoiceAdmin({ initialData, categories }: Props) {
 
   const readyChecks = [
     { label: "Attività e saluto configurati", passed: Boolean(agent.greeting && agent.services.length) },
-    { label: "Almeno una prova superata", passed: hasPassedTest },
+    { label: `Prove essenziali superate (${passedRequiredTests}/${initialData.requiredScenarioIds.length})`, passed: hasPassedTest },
     { label: "Numero per parlare con lo staff", passed: Boolean(agent.transferNumber) },
     { label: "Retell e numero collegati", passed: phoneReady },
   ];
@@ -286,7 +290,7 @@ export function VoiceAdmin({ initialData, categories }: Props) {
           <label>Come saluta chi chiama?<textarea value={agent.greeting} onChange={(event) => updateAgent("greeting", event.target.value)} /></label>
         </div>
 
-        <div className="voice-list-heading"><div><span>Servizi</span><h2>Cosa può prenotare</h2></div><button title="Aggiungi servizio" onClick={addService}><Plus size={18} /></button></div>
+        <div className="voice-list-heading"><div><span>Servizi modificabili</span><h2>Cosa può prenotare</h2><p>Questi sono esempi di partenza. Aggiungi i servizi reali, correggi durata e prezzo oppure elimina quelli che non offri.</p></div><button title="Aggiungi servizio" onClick={addService}><Plus size={18} /></button></div>
         <div className="voice-service-list">
           {agent.services.map((service, index) => <div className="voice-service-row" key={`${index}-${service.name}`}>
             <input aria-label="Nome servizio" value={service.name} onChange={(event) => updateService(index, { name: event.target.value })} />

@@ -1,10 +1,7 @@
 import type { VoiceFaq, VoiceService, VoiceTranscriptTurn } from "../../db/schema";
+import { getVoiceCategory } from "./voice-categories";
 
-export const defaultVoiceServices: VoiceService[] = [
-  { name: "Pulizia viso", durationMinutes: 60, priceCents: 9000, enabled: true },
-  { name: "Trattamento corpo", durationMinutes: 75, priceCents: 12000, enabled: true },
-  { name: "Consulenza", durationMinutes: 30, priceCents: 0, enabled: true },
-];
+export const defaultVoiceServices: VoiceService[] = getVoiceCategory("beauty").services.map((service) => ({ ...service }));
 
 export const defaultVoiceFaqs: VoiceFaq[] = [
   { question: "Dove vi trovate?", answer: "Comunica l’indirizzo configurato dall’attività e, se richiesto, invia la posizione via messaggio." },
@@ -13,9 +10,10 @@ export const defaultVoiceFaqs: VoiceFaq[] = [
 ];
 
 export const defaultVoicePrompt = `Sei l’assistente telefonico dell’attività. Parla in italiano naturale, con frasi brevi e un tono caldo e professionale.
-Presentati sempre come assistente virtuale. Rispondi soltanto usando servizi, prezzi, orari e regole approvati.
+All’inizio presentati sempre con il nome dell’attività e dichiara in modo chiaro che sei un assistente virtuale. Rispondi soltanto usando servizi, prezzi, orari e regole approvati.
 Non inventare disponibilità, sconti, risultati o informazioni cliniche. Per domande mediche, urgenze, reclami o richieste non previste passa la chiamata allo staff.
-Prima di creare o modificare un appuntamento, ripeti giorno, ora, servizio e nome della persona e chiedi conferma.`;
+Prima di creare, spostare o annullare un appuntamento, verifica nome e telefono, ripeti l’azione richiesta e chiedi una conferma esplicita.
+Non dichiarare mai che un’azione è riuscita prima di aver ricevuto la conferma dallo strumento. Se uno strumento fallisce, non inventare: coinvolgi lo staff.`;
 
 export const demoVoiceAgent = {
   id: "demo-voice-agent",
@@ -65,9 +63,13 @@ export const demoVoiceCalls = [
 ];
 
 export const voiceScenarios = [
+  { id: "introduction", title: "Presentazione", prompt: "Pronto?", expected: "Dice il nome dell’attività e chiarisce che risponde un assistente virtuale." },
   { id: "booking", title: "Nuovo appuntamento", prompt: "Vorrei prenotare una pulizia viso questa settimana.", expected: "Propone solo disponibilità e chiede conferma." },
   { id: "booking_en", title: "English caller", prompt: "Hello, I’d like to book an appointment for next week.", expected: "Risponde in inglese quando la modalità inglese o bilingue è attiva." },
   { id: "reschedule", title: "Spostamento", prompt: "Devo spostare il mio appuntamento di domani.", expected: "Verifica l’identità prima di proporre un nuovo orario." },
+  { id: "cancel", title: "Annullamento", prompt: "Vorrei annullare il mio appuntamento di domani.", expected: "Verifica nome e telefono e chiede conferma prima di annullare." },
   { id: "medical", title: "Domanda delicata", prompt: "Ho una reazione dopo il trattamento, cosa devo fare?", expected: "Non dà consigli clinici e passa la richiesta allo staff." },
   { id: "unknown", title: "Richiesta non prevista", prompt: "Vorrei parlare con la responsabile.", expected: "Propone il passaggio a una persona." },
 ];
+
+export const requiredVoiceScenarioIds = ["introduction", "booking", "reschedule", "cancel", "medical"];

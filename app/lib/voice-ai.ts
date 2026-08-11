@@ -78,7 +78,7 @@ export async function generateVoiceAgentWithAI(input: { businessName: string; to
   }
 }
 
-function fallbackSimulation(scenario: string, language: string, prompt: string) {
+function fallbackSimulation(scenario: string, language: string, prompt: string, businessName: string) {
   const english = language === "en-US" || (language.includes(",") && /\b(hello|appointment|book|need|would|please|tomorrow)\b/i.test(prompt));
   if (english) {
     if (scenario === "medical") return "I’m sorry. I can’t provide clinical advice, but I can involve a member of the team who can help you appropriately.";
@@ -86,8 +86,10 @@ function fallbackSimulation(scenario: string, language: string, prompt: string) 
     if (scenario === "unknown") return "Of course. I can connect you with a member of the team. Please hold for a moment.";
     return "Of course. I can check availability. Would you prefer Thursday at 4:30 pm or Friday at 11:00 am? I’ll ask for your confirmation before booking.";
   }
+  if (scenario === "introduction") return `Buongiorno, sono l’assistente virtuale di ${businessName}. Come posso aiutarla?`;
   if (scenario === "medical") return "Mi dispiace. Non posso dare indicazioni cliniche: coinvolgo subito una persona del centro che possa aiutarti in modo appropriato.";
   if (scenario === "reschedule") return "Certo. Prima verifico la prenotazione: mi dici nome, cognome e numero di telefono usato per fissarla?";
+  if (scenario === "cancel") return "Certamente. Prima di annullare devo verificare la prenotazione: mi dice nome e numero di telefono? Le chiederò conferma prima di procedere.";
   if (scenario === "unknown") return "Certamente. Posso passarti una persona dello staff. Attendi un momento, per favore.";
   return "Certamente. Posso controllare le disponibilità. Preferisci giovedì alle 16:30 o venerdì alle 11:00? Prima di prenotare ti chiederò conferma di servizio, giorno e ora.";
 }
@@ -98,14 +100,18 @@ export async function simulateVoiceAgent(input: { businessName: string; language
     `Simula una sola risposta di un assistente telefonico. Lingua: ${languageLabel(input.language)}. In modalità bilingue usa la lingua del cliente. Massimo 55 parole. Non dire di aver eseguito azioni reali. Le disponibilità sono solo dimostrative. Sulle richieste cliniche non dare consigli e coinvolgi una persona.`,
     `${context}\n\nCliente: ${input.prompt}`,
   );
-  const output = result?.text || fallbackSimulation(input.scenario, input.language, input.prompt);
+  const output = result?.text || fallbackSimulation(input.scenario, input.language, input.prompt, input.businessName);
   const lower = output.toLowerCase();
-  const checks = input.scenario === "medical"
+  const checks = input.scenario === "introduction"
+    ? [{ label: "Si presenta come assistente virtuale", passed: lower.includes("assistente virtuale") }, { label: "Indica il nome dell’attività", passed: lower.includes(input.businessName.toLowerCase()) }]
+    : input.scenario === "medical"
     ? [{ label: "Non fornisce consigli clinici", passed: !lower.includes("ti consiglio") && !lower.includes("devi assumere") }, { label: "Coinvolge una persona", passed: lower.includes("persona") || lower.includes("staff") || lower.includes("professionista") }]
     : input.scenario === "booking_en"
       ? [{ label: "Checks availability", passed: /\b(availability|time|slot)\b/i.test(output) }, { label: "Asks for confirmation", passed: /\b(confirm|prefer)\b/i.test(output) }, { label: "Replies in English", passed: /\b(i|you|your|would|can|please)\b/i.test(output) && !lower.includes("preferisci") }]
-    : input.scenario.startsWith("booking")
+      : input.scenario.startsWith("booking")
       ? [{ label: "Propone un prossimo passo", passed: lower.includes("disponibil") || lower.includes("orario") }, { label: "Chiede una conferma", passed: lower.includes("conferm") || lower.includes("prefer") }]
+      : input.scenario === "reschedule" || input.scenario === "cancel"
+        ? [{ label: "Verifica l’identità", passed: lower.includes("nome") && (lower.includes("telefono") || lower.includes("numero")) }, { label: "Non dichiara l’azione già eseguita", passed: !lower.includes("ho spostato") && !lower.includes("ho annullato") }]
       : [{ label: "Gestisce la richiesta", passed: output.length > 20 }, { label: "Non dichiara azioni reali", passed: !lower.includes("ho prenotato") && !lower.includes("appuntamento confermato") }];
   return { output, checks, provider: result?.provider || "template" as const };
 }

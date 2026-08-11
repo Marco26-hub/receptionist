@@ -60,7 +60,10 @@ export const appointments = pgTable("appointments", {
   valueCents: integer("value_cents").default(0).notNull(),
   status: text("status").default("confirmed").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-}, (table) => [index("appointments_org_starts_idx").on(table.organizationId, table.startsAt)]);
+}, (table) => [
+  index("appointments_org_starts_idx").on(table.organizationId, table.startsAt),
+  uniqueIndex("appointments_org_external_idx").on(table.organizationId, table.externalId),
+]);
 
 export const opportunities = pgTable("opportunities", {
   id: uuid("id").defaultRandom().primaryKey(),

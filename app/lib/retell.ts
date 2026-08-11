@@ -76,6 +76,60 @@ export async function syncAndPublishRetellAgent(input: { agentId: string; name: 
         },
       },
     },
+    {
+      type: "custom",
+      name: "trova_appuntamenti",
+      description: "Trova gli appuntamenti futuri dopo aver verificato nome e telefono. Usala prima di spostare o annullare.",
+      url: `${siteUrl}/api/voice/tools/appointments/find`,
+      method: "POST",
+      speak_during_execution: true,
+      speak_after_execution: true,
+      parameters: {
+        type: "object",
+        required: ["first_name", "phone"],
+        properties: {
+          first_name: { type: "string", description: "Nome usato per la prenotazione" },
+          phone: { type: "string", description: "Numero di telefono usato per la prenotazione" },
+        },
+      },
+    },
+    {
+      type: "custom",
+      name: "sposta_appuntamento",
+      description: "Sposta un appuntamento trovato. Usala soltanto dopo il controllo disponibilità e la conferma esplicita del nuovo orario.",
+      url: `${siteUrl}/api/voice/tools/appointments/reschedule`,
+      method: "POST",
+      speak_during_execution: true,
+      speak_after_execution: true,
+      parameters: {
+        type: "object",
+        required: ["appointment_id", "phone", "starts_at", "confirmed"],
+        properties: {
+          appointment_id: { type: "string", description: "Identificativo ricevuto da trova_appuntamenti" },
+          phone: { type: "string", description: "Numero verificato della persona" },
+          starts_at: { type: "string", description: "Nuova data e ora ISO ricevuta dal controllo disponibilità" },
+          confirmed: { type: "boolean", description: "Vero solo dopo la conferma esplicita del nuovo orario" },
+        },
+      },
+    },
+    {
+      type: "custom",
+      name: "annulla_appuntamento",
+      description: "Annulla un appuntamento trovato soltanto dopo averlo ripetuto e aver ricevuto una conferma esplicita.",
+      url: `${siteUrl}/api/voice/tools/appointments/cancel`,
+      method: "POST",
+      speak_during_execution: true,
+      speak_after_execution: true,
+      parameters: {
+        type: "object",
+        required: ["appointment_id", "phone", "confirmed"],
+        properties: {
+          appointment_id: { type: "string", description: "Identificativo ricevuto da trova_appuntamenti" },
+          phone: { type: "string", description: "Numero verificato della persona" },
+          confirmed: { type: "boolean", description: "Vero solo dopo la conferma esplicita dell’annullamento" },
+        },
+      },
+    },
   );
   if (input.transferNumber) tools.push({
     type: "transfer_call",
@@ -94,7 +148,7 @@ export async function syncAndPublishRetellAgent(input: { agentId: string; name: 
       tool_call_strict_mode: true,
       start_speaker: "agent",
       begin_message: input.greeting,
-      general_prompt: `${input.systemPrompt}\n\n${languageRule}\nPer prenotare usa sempre prima controlla_disponibilita. Usa prenota_appuntamento solo dopo la conferma esplicita della persona.` + knowledgeText(input.services, input.faqs),
+      general_prompt: `${input.systemPrompt}\n\n${languageRule}\nREGOLE OPERATIVE\n- Per un nuovo appuntamento usa prima controlla_disponibilita e poi prenota_appuntamento, soltanto dopo la conferma esplicita.\n- Per spostare o annullare usa prima trova_appuntamenti e verifica nome e telefono.\n- Per spostare controlla anche la nuova disponibilità e chiedi conferma prima di usare sposta_appuntamento.\n- Non dire mai che una prenotazione è creata, spostata o annullata finché lo strumento non restituisce esito positivo.\n- Se mancano dati, il servizio non è riconosciuto o uno strumento fallisce, coinvolgi lo staff.` + knowledgeText(input.services, input.faqs),
       general_tools: tools,
     }),
   });

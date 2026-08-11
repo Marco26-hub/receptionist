@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "appointments_org_external_idx" ON "appointments" USING btree ("organization_id","external_id");

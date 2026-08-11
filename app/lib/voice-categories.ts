@@ -16,7 +16,12 @@ export const voiceCategories: VoiceCategory[] = [
     description: "Trattamenti viso e corpo, epilazione, pacchetti e richiami.",
     services: [
       { name: "Pulizia viso", durationMinutes: 60, priceCents: 9000, enabled: true },
+      { name: "Trattamento viso avanzato", durationMinutes: 75, priceCents: 13000, enabled: true },
       { name: "Trattamento corpo", durationMinutes: 75, priceCents: 12000, enabled: true },
+      { name: "Massaggio corpo", durationMinutes: 60, priceCents: 8500, enabled: true },
+      { name: "Epilazione", durationMinutes: 30, priceCents: 0, enabled: true },
+      { name: "Manicure", durationMinutes: 45, priceCents: 3500, enabled: true },
+      { name: "Pedicure estetico", durationMinutes: 60, priceCents: 4500, enabled: true },
       { name: "Consulenza iniziale", durationMinutes: 30, priceCents: 0, enabled: true },
     ],
     faqs: [

@@ -95,25 +95,39 @@ test("uses the public checkout origin and keeps optimization reruns bounded", as
 });
 
 test("ships a guarded end-to-end voice workflow", async () => {
-  const [retell, voiceAi, activation, pause, booking, webhook, admin, runbook] = await Promise.all([
+  const [retell, voiceAi, activation, pause, booking, findBooking, reschedule, cancel, webhook, admin, repository, runbook] = await Promise.all([
     read("app/lib/retell.ts"),
     read("app/lib/voice-ai.ts"),
     read("app/api/admin/voice/activate/route.ts"),
     read("app/api/admin/voice/pause/route.ts"),
     read("app/api/voice/tools/booking/route.ts"),
+    read("app/api/voice/tools/appointments/find/route.ts"),
+    read("app/api/voice/tools/appointments/reschedule/route.ts"),
+    read("app/api/voice/tools/appointments/cancel/route.ts"),
     read("app/api/webhooks/retell/route.ts"),
     read("app/components/VoiceAdmin.tsx"),
+    read("app/lib/voice-repository.ts"),
     read("GO_LIVE.md"),
   ]);
   assert.match(retell, /verifyRetellSignature/);
   assert.match(retell, /inbound_agents/);
   assert.match(retell, /latest_published/);
+  assert.match(retell, /trova_appuntamenti/);
+  assert.match(retell, /sposta_appuntamento/);
+  assert.match(retell, /annulla_appuntamento/);
   assert.match(voiceAi, /Replies in English/);
   assert.match(activation, /setRetellPhoneActive/);
   assert.match(pause, /setRetellPhoneActive/);
   assert.match(booking, /confirmed/);
+  assert.match(booking, /priceCents: service\.priceCents/);
+  assert.match(findBooking, /first_name/);
+  assert.match(reschedule, /confirmed/);
+  assert.match(cancel, /confirmed/);
   assert.match(webhook, /x-retell-signature/);
   assert.match(admin, /Automatico: Italiano \+ English/);
+  assert.match(admin, /Prove essenziali superate/);
+  assert.match(repository, /onConflictDoNothing/);
+  assert.match(repository, /requiredVoiceScenarioIds/);
   assert.match(runbook, /Metti in pausa/);
 });
 

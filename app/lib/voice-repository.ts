@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, gte, inArray, lt, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, lt, lte, ne, sql } from "drizzle-orm";
 import { getDb, isDatabaseConfigured } from "../../db";
 import {
   appointments,
@@ -15,7 +15,7 @@ import {
 } from "../../db/schema";
 import { normalizePhone } from "./security";
 import { ValidationError } from "./validation";
-import { defaultVoiceFaqs, defaultVoicePrompt, defaultVoiceServices, demoVoiceAgent, demoVoiceCalls, voiceScenarios } from "./voice-demo";
+import { defaultVoiceFaqs, defaultVoicePrompt, defaultVoiceServices, demoVoiceAgent, demoVoiceCalls, requiredVoiceScenarioIds, voiceScenarios } from "./voice-demo";
 
 export type VoiceAgentInput = {
   name: string;
@@ -60,10 +60,12 @@ function agentSnapshot(agent: typeof voiceAgents.$inferSelect) {
 export async function getVoiceAdminData(organizationId: string) {
   if (!isDatabaseConfigured()) {
     return {
+      businessName: "AgendaPiena AI",
       agent: demoVoiceAgent,
       calls: demoVoiceCalls,
       tests: [],
       scenarios: voiceScenarios,
+      requiredScenarioIds: requiredVoiceScenarioIds,
       integrations: { retell: false, ai: false, openrouter: false },
       mode: "demo" as const,
     };
@@ -90,10 +92,12 @@ export async function getVoiceAdminData(organizationId: string) {
   ]);
 
   return {
+    businessName: organization.name,
     agent,
     calls: storedCalls.map(({ recordingUrl, ...call }) => ({ ...call, hasRecording: Boolean(recordingUrl) })),
     tests,
     scenarios: voiceScenarios,
+    requiredScenarioIds: requiredVoiceScenarioIds,
     integrations: {
       retell: Boolean(process.env.RETELL_API_KEY),
       ai: Boolean(process.env.OPENAI_API_KEY || process.env.OPENROUTER_API_KEY),
@@ -156,8 +160,10 @@ export async function markVoiceAgentReady(organizationId: string, actorEmail: st
   const db = getDb();
   const agent = await db.query.voiceAgents.findFirst({ where: eq(voiceAgents.organizationId, organizationId) });
   if (!agent) throw new ValidationError("Assistente non trovato");
-  const passed = await db.query.voiceTestRuns.findFirst({ where: and(eq(voiceTestRuns.agentId, agent.id), eq(voiceTestRuns.status, "passed")), orderBy: [desc(voiceTestRuns.createdAt)] });
-  if (!passed) throw new ValidationError("Completa almeno una prova prima di continuare");
+  const passed = await db.select({ scenario: voiceTestRuns.scenario }).from(voiceTestRuns).where(and(eq(voiceTestRuns.agentId, agent.id), eq(voiceTestRuns.status, "passed")));
+  const passedScenarios = new Set(passed.map((test) => test.scenario));
+  const missing = requiredVoiceScenarioIds.filter((scenario) => !passedScenarios.has(scenario));
+  if (missing.length) throw new ValidationError(`Completa le ${missing.length} prove essenziali mancanti prima di continuare`);
   const nextVersion = agent.publishedVersion + 1;
   await db.transaction(async (transaction) => {
     await transaction.insert(voiceAgentVersions).values({ organizationId, agentId: agent.id, version: nextVersion, configuration: agentSnapshot(agent), createdBy: actorEmail });
@@ -297,7 +303,7 @@ export async function getAvailableVoiceSlots(organizationId: string, durationMin
   }));
 }
 
-export async function createVoiceBooking(input: { organizationId: string; firstName: string; phone: string; serviceName: string; startsAt: Date; durationMinutes: number; confirmed: boolean; testMode: boolean; externalId?: string }) {
+export async function createVoiceBooking(input: { organizationId: string; firstName: string; phone: string; serviceName: string; startsAt: Date; durationMinutes: number; priceCents: number; confirmed: boolean; testMode: boolean; externalId?: string }) {
   if (!input.confirmed) throw new ValidationError("Serve la conferma esplicita della persona");
   if (input.testMode || !isDatabaseConfigured()) return { ok: true, demo: true, appointmentId: `test-${Date.now()}` };
   const db = getDb();
@@ -311,6 +317,85 @@ export async function createVoiceBooking(input: { organizationId: string; firstN
   const endsAt = new Date(input.startsAt.getTime() + input.durationMinutes * 60_000);
   const [conflict] = await db.select({ count: sql<number>`count(*)` }).from(appointments).where(and(eq(appointments.organizationId, input.organizationId), inArray(appointments.status, ["confirmed", "pending"]), lt(appointments.startsAt, endsAt), gt(appointments.endsAt, input.startsAt)));
   if (Number(conflict?.count || 0) > 0) throw new ValidationError("Questo orario non è più disponibile");
-  const [appointment] = await db.insert(appointments).values({ organizationId: input.organizationId, customerId: customer.id, externalId: input.externalId, serviceName: input.serviceName, startsAt: input.startsAt, endsAt, status: "confirmed", valueCents: 0 }).returning({ id: appointments.id });
+  const values = { organizationId: input.organizationId, customerId: customer.id, externalId: input.externalId, serviceName: input.serviceName, startsAt: input.startsAt, endsAt, status: "confirmed", valueCents: input.priceCents };
+  if (input.externalId) {
+    const [appointment] = await db.insert(appointments).values(values).onConflictDoNothing({ target: [appointments.organizationId, appointments.externalId] }).returning({ id: appointments.id });
+    if (appointment) return { ok: true, demo: false, appointmentId: appointment.id };
+    const existing = await db.query.appointments.findFirst({ where: and(eq(appointments.organizationId, input.organizationId), eq(appointments.externalId, input.externalId)) });
+    if (existing) return { ok: true, demo: false, appointmentId: existing.id, existing: true };
+    throw new ValidationError("La prenotazione non è stata salvata. Riprova o coinvolgi lo staff");
+  }
+  const [appointment] = await db.insert(appointments).values(values).returning({ id: appointments.id });
   return { ok: true, demo: false, appointmentId: appointment.id };
+}
+
+export async function findUpcomingVoiceAppointments(input: { organizationId: string; firstName: string; phone: string; testMode: boolean }) {
+  if (input.testMode || !isDatabaseConfigured()) return [{ id: "test-appointment", serviceName: "Pulizia viso", startsAt: new Date(Date.now() + 86_400_000).toISOString(), label: "Domani alle 16:30" }];
+  const db = getDb();
+  const phone = normalizePhone(input.phone);
+  const [customer, organization] = await Promise.all([
+    db.query.customers.findFirst({ where: and(eq(customers.organizationId, input.organizationId), eq(customers.phone, phone)) }),
+    db.query.organizations.findFirst({ where: eq(organizations.id, input.organizationId) }),
+  ]);
+  if (!customer || !samePersonName(customer.firstName, input.firstName)) return [];
+  const rows = await db.select().from(appointments).where(and(
+    eq(appointments.organizationId, input.organizationId),
+    eq(appointments.customerId, customer.id),
+    gte(appointments.startsAt, new Date()),
+    inArray(appointments.status, ["confirmed", "pending"]),
+  )).orderBy(asc(appointments.startsAt)).limit(3);
+  return rows.map((appointment) => ({
+    id: appointment.id,
+    serviceName: appointment.serviceName,
+    startsAt: appointment.startsAt.toISOString(),
+    label: new Intl.DateTimeFormat("it-IT", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone: organization?.timezone || "Europe/Rome" }).format(appointment.startsAt),
+  }));
+}
+
+export async function rescheduleVoiceAppointment(input: { organizationId: string; appointmentId: string; phone: string; startsAt: Date; confirmed: boolean; testMode: boolean }) {
+  if (!input.confirmed) throw new ValidationError("Serve la conferma esplicita della persona");
+  if (input.testMode || !isDatabaseConfigured()) return { ok: true, demo: true, appointmentId: input.appointmentId };
+  const db = getDb();
+  const customer = await db.query.customers.findFirst({ where: and(eq(customers.organizationId, input.organizationId), eq(customers.phone, normalizePhone(input.phone))) });
+  if (!customer) throw new ValidationError("Appuntamento non trovato");
+  const appointment = await db.query.appointments.findFirst({ where: and(eq(appointments.id, input.appointmentId), eq(appointments.organizationId, input.organizationId), eq(appointments.customerId, customer.id)) });
+  if (!appointment || !["confirmed", "pending"].includes(appointment.status)) throw new ValidationError("Appuntamento non trovato o non modificabile");
+  if (!Number.isFinite(input.startsAt.getTime()) || input.startsAt <= new Date()) throw new ValidationError("Nuovo orario non valido");
+  const duration = appointment.endsAt.getTime() - appointment.startsAt.getTime();
+  const available = await getAvailableVoiceSlots(input.organizationId, duration / 60_000);
+  if (!available.some((slot) => Math.abs(new Date(slot.startsAt).getTime() - input.startsAt.getTime()) < 60_000)) throw new ValidationError("Scegli uno degli orari verificati come disponibili");
+  const endsAt = new Date(input.startsAt.getTime() + duration);
+  const [conflict] = await db.select({ count: sql<number>`count(*)` }).from(appointments).where(and(
+    eq(appointments.organizationId, input.organizationId),
+    ne(appointments.id, appointment.id),
+    inArray(appointments.status, ["confirmed", "pending"]),
+    lt(appointments.startsAt, endsAt),
+    gt(appointments.endsAt, input.startsAt),
+  ));
+  if (Number(conflict?.count || 0) > 0) throw new ValidationError("Il nuovo orario non è più disponibile");
+  await db.update(appointments).set({ startsAt: input.startsAt, endsAt }).where(and(eq(appointments.id, appointment.id), eq(appointments.organizationId, input.organizationId)));
+  return { ok: true, demo: false, appointmentId: appointment.id };
+}
+
+export async function cancelVoiceAppointment(input: { organizationId: string; appointmentId: string; phone: string; confirmed: boolean; testMode: boolean }) {
+  if (!input.confirmed) throw new ValidationError("Serve la conferma esplicita della persona");
+  if (input.testMode || !isDatabaseConfigured()) return { ok: true, demo: true, appointmentId: input.appointmentId };
+  const db = getDb();
+  const customer = await db.query.customers.findFirst({ where: and(eq(customers.organizationId, input.organizationId), eq(customers.phone, normalizePhone(input.phone))) });
+  if (!customer) throw new ValidationError("Appuntamento non trovato");
+  const [appointment] = await db.update(appointments).set({ status: "cancelled" }).where(and(
+    eq(appointments.id, input.appointmentId),
+    eq(appointments.organizationId, input.organizationId),
+    eq(appointments.customerId, customer.id),
+    inArray(appointments.status, ["confirmed", "pending"]),
+  )).returning({ id: appointments.id });
+  if (!appointment) throw new ValidationError("Appuntamento non trovato o già annullato");
+  return { ok: true, demo: false, appointmentId: appointment.id };
+}
+
+function samePersonName(stored: string, supplied: string) {
+  const normalize = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLocaleLowerCase("it");
+  const expected = normalize(stored);
+  const received = normalize(supplied);
+  return Boolean(expected && received && (expected === received || received.startsWith(`${expected} `)));
 }

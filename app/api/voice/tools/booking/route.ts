@@ -32,6 +32,7 @@ export async function POST(request: Request) {
       serviceName: service.name,
       startsAt,
       durationMinutes: service.durationMinutes,
+      priceCents: service.priceCents,
       confirmed: true,
       testMode: agent.testMode,
       externalId: payload.call?.call_id ? `voice:${payload.call.call_id}:${startsAt.toISOString()}` : undefined,
