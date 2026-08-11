@@ -1,4 +1,5 @@
 "use client";
+import Image from "next/image";
 /* eslint-disable @next/next/no-html-link-for-pages */
 import { useMemo, useState } from "react";
 import {
@@ -165,7 +166,7 @@ export function AdminDashboard({ initialData, userEmail }: DashboardProps) {
     <div className="admin-app">
       <aside className="admin-sidebar">
         <a className="admin-logo" href="/">
-          <span>A</span>
+          <span><Image src="/agendapiena-mark.svg" alt="" width={38} height={38} /></span>
           <div>
             <strong>AgendaPiena</strong>
             <small>Intelligence atelier</small>

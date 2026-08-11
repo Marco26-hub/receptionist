@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { legalEntity } from "../lib/legal";
 import { cities, contactHref } from "../lib/site";
 
@@ -6,7 +7,7 @@ export function SiteFooter() {
   return (
     <footer className="site-footer">
       <div className="footer-brand">
-        <strong>AgendaPiena AI</strong>
+        <strong><Image src="/agendapiena-mark.svg" alt="" width={38} height={38} /> AgendaPiena AI</strong>
         <p>L’assistente che trova occasioni nell’agenda e prepara il lavoro da fare.</p>
         <a href={contactHref}>{legalEntity.email}</a>
         <a href={`tel:${legalEntity.phoneHref}`}>{legalEntity.phone}</a>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { contactHref } from "../lib/site";
 
 export function SiteHeader() {
@@ -6,7 +7,7 @@ export function SiteHeader() {
     <header className="site-header">
       <nav className="nav" aria-label="Navigazione principale">
         <Link className="brand" href="/" aria-label="AgendaPiena AI, pagina iniziale">
-          <span className="brand-mark">A</span>
+          <span className="brand-mark"><Image src="/agendapiena-mark.svg" alt="" width={34} height={34} /></span>
           <span>AgendaPiena AI</span>
         </Link>
         <div className="nav-links">
