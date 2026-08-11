@@ -5,7 +5,7 @@
 1. Crea il progetto `agendapiena-ai` in una regione europea.
 2. Copia la connection string con pooling in `DATABASE_URL`.
 3. Copia la connection string diretta in `DIRECT_DATABASE_URL` per le migrazioni.
-4. In locale esegui `npm run db:push` e `npm run db:seed` usando le variabili Neon.
+4. In locale esegui `npm run db:push` e `npm run db:seed` usando le variabili Neon. Lascia `SEED_DEMO_DATA=false` sul database reale.
 
 L'app usa la connessione pooled durante il normale funzionamento. Drizzle usa quella diretta per le modifiche allo schema.
 

@@ -21,22 +21,23 @@ try {
     on conflict (organization_id, email) do nothing
   `;
 
-  const demoCustomers = [
-    ["Martina", "Rossi", "+393330000001", 94, 252000, ["Laser gambe"]],
-    ["Giulia", "Bianchi", "+393330000002", 76, 108000, ["Trattamento viso"]],
-    ["Elena", "Pellegrini", "+393330000003", 65, 72000, ["Massaggio"]],
-  ];
+  if (process.env.SEED_DEMO_DATA === "true") {
+    const demoCustomers = [
+      ["Martina", "Rossi", "+393330000001", 94, 252000, ["Laser gambe"]],
+      ["Giulia", "Bianchi", "+393330000002", 76, 108000, ["Trattamento viso"]],
+      ["Elena", "Pellegrini", "+393330000003", 65, 72000, ["Massaggio"]],
+    ];
 
-  for (const [firstName, lastName, phone, inactiveDays, value, services] of demoCustomers) {
-    await sql`
-      insert into customers (organization_id, first_name, last_name, phone, last_visit_at, lifetime_value_cents, preferred_services, marketing_consent, consent_recorded_at)
-      values (${organization.id}, ${firstName}, ${lastName}, ${phone}, now() - (${inactiveDays}::text || ' days')::interval, ${value}, ${services}, true, now())
-      on conflict (organization_id, phone) do nothing
-    `;
+    for (const [firstName, lastName, phone, inactiveDays, value, services] of demoCustomers) {
+      await sql`
+        insert into customers (organization_id, first_name, last_name, phone, last_visit_at, lifetime_value_cents, preferred_services, marketing_consent, consent_recorded_at)
+        values (${organization.id}, ${firstName}, ${lastName}, ${phone}, now() - (${inactiveDays}::text || ' days')::interval, ${value}, ${services}, true, now())
+        on conflict (organization_id, phone) do nothing
+      `;
+    }
   }
 
   console.log(`Database inizializzato per ${organizationName}`);
 } finally {
   await sql.end();
 }
-
