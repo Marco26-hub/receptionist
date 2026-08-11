@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { legalEntity } from "../lib/legal";
 import { cities, contactHref } from "../lib/site";
 
 export function SiteFooter() {
@@ -7,7 +8,8 @@ export function SiteFooter() {
       <div className="footer-brand">
         <strong>AgendaPiena AI</strong>
         <p>L’assistente che trova occasioni nell’agenda e prepara il lavoro da fare.</p>
-        <a href={contactHref}>demo@agendapiena.ai</a>
+        <a href={contactHref}>{legalEntity.email}</a>
+        <a href={`tel:${legalEntity.phoneHref}`}>{legalEntity.phone}</a>
       </div>
       <div>
         <strong>Scopri</strong>
@@ -31,7 +33,7 @@ export function SiteFooter() {
         ))}
       </div>
       <div className="footer-bottom">
-        <span>© 2026 AgendaPiena AI</span>
+        <span>© 2026 AgendaPiena AI · {legalEntity.name} · P.IVA {legalEntity.vatNumber}</span>
         <Link href="/privacy">Privacy</Link>
         <Link href="/termini">Termini</Link>
       </div>

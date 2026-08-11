@@ -12,5 +12,4 @@ export const cities = [
 ];
 
 export const contactHref =
-  "mailto:demo@agendapiena.ai?subject=Richiesta%20demo%20AgendaPiena%20AI";
-
+  "mailto:swsdautomation@gmail.com?subject=Richiesta%20demo%20AgendaPiena%20AI";

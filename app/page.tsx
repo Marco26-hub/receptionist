@@ -3,6 +3,7 @@ import Image from "next/image";
 import { JsonLd } from "./components/JsonLd";
 import { SiteFooter } from "./components/SiteFooter";
 import { SiteHeader } from "./components/SiteHeader";
+import { legalEntity } from "./lib/legal";
 import { cities, contactHref, siteUrl } from "./lib/site";
 
 export const metadata: Metadata = {
@@ -36,8 +37,19 @@ const schemas = [
     "@context": "https://schema.org",
     "@type": "Organization",
     name: "AgendaPiena AI",
+    legalName: legalEntity.name,
     url: siteUrl,
-    email: "demo@agendapiena.ai",
+    email: legalEntity.email,
+    telephone: legalEntity.phone,
+    taxID: legalEntity.vatNumber,
+    address: {
+      "@type": "PostalAddress",
+      streetAddress: "Via Giuseppe Verdi 2B",
+      postalCode: "22072",
+      addressLocality: "Cermenate",
+      addressRegion: "CO",
+      addressCountry: "IT",
+    },
     areaServed: "IT",
   },
   {

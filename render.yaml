@@ -50,10 +50,18 @@ services:
       - key: STRIPE_WEBHOOK_SECRET
         sync: false
       - key: LEGAL_COMPANY_NAME
-        sync: false
+        value: Social Automation di Marco Dibenedetto
       - key: LEGAL_VAT_NUMBER
-        sync: false
+        value: "03786790133"
+      - key: LEGAL_TAX_CODE
+        value: DBNMRC80E04C933Q
       - key: LEGAL_ADDRESS
-        sync: false
+        value: Via Giuseppe Verdi 2B, 22072 Cermenate (CO), Italia
       - key: LEGAL_EMAIL
-        sync: false
+        value: swsdautomation@gmail.com
+      - key: LEGAL_PEC
+        value: dibenedetto.80@pec.it
+      - key: LEGAL_PHONE
+        value: +39 347 719 6603
+      - key: LEGAL_PHONE_HREF
+        value: "+393477196603"
