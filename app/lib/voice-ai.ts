@@ -66,8 +66,11 @@ export async function analyzeVoiceKnowledge(input: { businessName: string; langu
     const parsed = parseJsonObject(result.text);
     const services = Array.isArray(parsed.services) ? parsed.services.slice(0, 30).map((item) => {
       const row = item as Record<string, unknown>;
-      return { name: String(row.name || "").slice(0, 150), durationMinutes: Math.max(15, Math.min(480, Number(row.durationMinutes) || 0)), priceCents: Math.max(0, Math.min(10_000_000, Number(row.priceCents) || 0)), enabled: true };
-    }).filter((item) => item.name && item.durationMinutes > 0) : [];
+      const duration = Number(row.durationMinutes);
+      const price = Number(row.priceCents);
+      if (!Number.isFinite(duration) || duration <= 0 || !Number.isFinite(price) || price < 0) return null;
+      return { name: String(row.name || "").slice(0, 150), durationMinutes: Math.max(15, Math.min(480, Math.round(duration))), priceCents: Math.min(10_000_000, Math.round(price)), enabled: true };
+    }).filter((item): item is VoiceService => Boolean(item?.name)) : [];
     const faqs = Array.isArray(parsed.faqs) ? parsed.faqs.slice(0, 20).map((item) => {
       const row = item as Record<string, unknown>;
       return { question: String(row.question || "").slice(0, 200), answer: String(row.answer || "").slice(0, 1000) };

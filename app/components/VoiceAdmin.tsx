@@ -10,6 +10,7 @@ import {
   Clock3,
   Download,
   Eye,
+  FileText,
   ListChecks,
   LoaderCircle,
   Mic,
@@ -94,6 +95,9 @@ export function VoiceAdmin({ initialData, categories }: Props) {
   const [testPrompt, setTestPrompt] = useState(initialData.scenarios[0]?.prompt || "");
   const [testResult, setTestResult] = useState<{ output: string; checks: Array<{ label: string; passed: boolean }>; provider: string } | null>(null);
   const [callActive, setCallActive] = useState(false);
+  const [knowledgeNotes, setKnowledgeNotes] = useState("");
+  const [knowledgeFile, setKnowledgeFile] = useState<File | null>(null);
+  const [knowledgeProposal, setKnowledgeProposal] = useState<{ summary: string; services: VoiceService[]; faqs: VoiceFaq[]; rules: string[]; provider: string; sourceName: string } | null>(null);
   const callClient = useRef<{ stopCall: () => void } | null>(null);
   const currentCategory = useMemo(() => categories.find((item) => item.id === agent.category) || categories[0], [agent.category, categories]);
   const passedScenarios = new Set(initialData.tests.filter((test) => test.status === "passed").map((test) => test.scenario));
@@ -157,6 +161,44 @@ export function VoiceAdmin({ initialData, categories }: Props) {
       setNotice(`Assistente preparato con ${result.provider === "openrouter" ? "GPT-5 mini tramite OpenRouter" : result.provider === "openai" ? "GPT-5 mini" : "il modello sicuro incluso"}. Controlla il saluto e le risposte.`);
     } catch (error) { setNotice(error instanceof Error ? error.message : "Generazione non riuscita"); }
     finally { setBusy(""); }
+  }
+
+  async function analyzeKnowledge() {
+    setBusy("knowledge"); setNotice(""); setKnowledgeProposal(null);
+    try {
+      const form = new FormData();
+      if (knowledgeFile) form.append("file", knowledgeFile);
+      form.append("notes", knowledgeNotes);
+      const response = await fetch("/api/admin/voice/knowledge", { method: "POST", body: form });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Analisi non riuscita");
+      setKnowledgeProposal({ ...result.proposal, sourceName: result.source.name });
+      setNotice("Proposta pronta. Controlla cosa verrà aggiunto prima di confermare.");
+    } catch (error) { setNotice(error instanceof Error ? error.message : "Analisi non riuscita"); }
+    finally { setBusy(""); }
+  }
+
+  function applyKnowledge() {
+    if (!knowledgeProposal) return;
+    const services = new Map(agent.services.map((item) => [item.name.trim().toLowerCase(), item]));
+    knowledgeProposal.services.forEach((item) => services.set(item.name.trim().toLowerCase(), item));
+    const faqs = new Map(agent.faqs.map((item) => [item.question.trim().toLowerCase(), item]));
+    knowledgeProposal.faqs.forEach((item) => faqs.set(item.question.trim().toLowerCase(), item));
+    const rules = knowledgeProposal.rules.length ? `\n\nREGOLE APPROVATE DA ${knowledgeProposal.sourceName.toUpperCase()}\n- ${knowledgeProposal.rules.join("\n- ")}` : "";
+    setAgent((current) => ({ ...current, services: [...services.values()].slice(0, 50), faqs: [...faqs.values()].slice(0, 50), systemPrompt: `${current.systemPrompt}${rules}`.slice(0, 10_000), status: "draft", testMode: true }));
+    setKnowledgeProposal(null); setKnowledgeFile(null); setKnowledgeNotes("");
+    setNotice("Conoscenze aggiunte alla bozza. Controllale e premi Salva configurazione.");
+  }
+
+  function startDictation() {
+    type Recognition = { lang: string; continuous: boolean; onresult: (event: { results: ArrayLike<{ 0: { transcript: string } }> }) => void; onerror: () => void; start: () => void };
+    const browserWindow = window as unknown as { SpeechRecognition?: new () => Recognition; webkitSpeechRecognition?: new () => Recognition };
+    const RecognitionClass = browserWindow.SpeechRecognition || browserWindow.webkitSpeechRecognition;
+    if (!RecognitionClass) { setNotice("Questo browser non offre la dettatura. Puoi scrivere le risposte nel campo."); return; }
+    const recognition = new RecognitionClass(); recognition.lang = "it-IT"; recognition.continuous = true;
+    recognition.onresult = (event) => setKnowledgeNotes((current) => `${current}${current ? " " : ""}${Array.from(event.results).map((result) => result[0].transcript).join(" ")}`);
+    recognition.onerror = () => setNotice("Microfono non disponibile. Controlla il permesso del browser.");
+    recognition.start(); setNotice("Dettatura avviata. Racconta servizi, prezzi, orari e regole dell’attività.");
   }
 
   async function runTest() {
@@ -288,6 +330,16 @@ export function VoiceAdmin({ initialData, categories }: Props) {
           <label>In che lingua parla?<select value={agent.language} onChange={(event) => changeLanguage(event.target.value)}><option value="it-IT">Italiano</option><option value="en-US">English</option><option value="it-IT,en-US">Automatico: Italiano + English</option></select><small>In automatico riconosce la lingua di chi chiama e risponde nella stessa lingua. Una lingua singola resta più precisa.</small></label>
           <label>Come saluta chi chiama?<textarea value={agent.greeting} onChange={(event) => updateAgent("greeting", event.target.value)} /></label>
         </div>
+
+        <section className="voice-knowledge">
+          <div className="voice-list-heading"><div><span>Conoscenze dell’attività</span><h2>Insegna ciò che deve sapere</h2><p>Carica un listino o racconta come lavorate. L’AI prepara una proposta, ma non cambia nulla senza la tua conferma.</p></div><FileText size={25} /></div>
+          <div className="voice-knowledge-input">
+            <label><strong>Carica un documento</strong><input type="file" accept="application/pdf,.pdf,.txt,.csv,text/plain,text/csv" onChange={(event) => setKnowledgeFile(event.target.files?.[0] || null)} /><small>{knowledgeFile ? knowledgeFile.name : "PDF, TXT o CSV, massimo 5 MB"}</small><em>Non caricare cartelle cliniche o dati personali dei clienti.</em></label>
+            <label><strong>Intervista guidata</strong><textarea value={knowledgeNotes} onChange={(event) => setKnowledgeNotes(event.target.value)} placeholder="Quali servizi offrite? Quanto durano e quanto costano? Quali orari fate? Quando deve intervenire una persona?" /><button type="button" onClick={startDictation}><Mic size={16} /> Detta le risposte</button></label>
+          </div>
+          <button className="voice-knowledge-analyze" disabled={Boolean(busy) || (!knowledgeFile && knowledgeNotes.trim().length < 30)} onClick={analyzeKnowledge}>{busy === "knowledge" ? <LoaderCircle className="spin" size={17} /> : <Sparkles size={17} />} Analizza e prepara la proposta</button>
+          {knowledgeProposal && <div className="voice-knowledge-proposal"><div><strong>Proposta da controllare</strong><small>{knowledgeProposal.sourceName}</small><p>{knowledgeProposal.summary}</p></div><div className="voice-knowledge-counts"><span>{knowledgeProposal.services.length} servizi</span><span>{knowledgeProposal.faqs.length} risposte</span><span>{knowledgeProposal.rules.length} regole</span></div><div className="voice-knowledge-actions"><button onClick={applyKnowledge}><Check size={16} /> Applica alla bozza</button><button className="secondary" onClick={() => setKnowledgeProposal(null)}>Scarta</button></div></div>}
+        </section>
 
         <div className="voice-list-heading"><div><span>Servizi modificabili</span><h2>Cosa può prenotare</h2><p>Questi sono esempi di partenza. Aggiungi i servizi reali, correggi durata e prezzo oppure elimina quelli che non offri.</p></div><button title="Aggiungi servizio" onClick={addService}><Plus size={18} /></button></div>
         <div className="voice-service-list">
