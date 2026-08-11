@@ -72,3 +72,13 @@ test("ships an executable deployment gate and go-live runbook", async () => {
   assert.match(checkEnv, /LEGAL_COMPANY_NAME/);
   assert.match(runbook, /api\/health\?deep=1/);
 });
+
+test("ships Render, Neon and free scheduled optimization configuration", async () => {
+  const [render, drizzle, workflow] = await Promise.all([read("render.yaml"), read("drizzle.config.ts"), read(".github/workflows/daily-optimization.yml")]);
+  assert.match(render, /runtime: node/);
+  assert.match(render, /plan: free/);
+  assert.match(render, /startCommand: npm start/);
+  assert.match(drizzle, /DIRECT_DATABASE_URL/);
+  assert.match(workflow, /api\/cron\/optimize/);
+  assert.match(workflow, /secrets\.CRON_SECRET/);
+});

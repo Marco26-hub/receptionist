@@ -1,0 +1,21 @@
+name: Daily optimization
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+jobs:
+  optimize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run AgendaPiena optimization
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          test -n "$APP_URL"
+          test -n "$CRON_SECRET"
+          curl --fail-with-body --retry 3 --retry-delay 20 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$APP_URL/api/cron/optimize"

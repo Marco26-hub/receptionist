@@ -32,10 +32,10 @@ npm run dev
 
 Senza variabili esterne l'app parte in modalità dimostrativa. L'accesso locale predefinito è documentato nella pagina `/accesso` e viene disabilitato in produzione se `ADMIN_PASSWORD` non è configurata.
 
-## Database Supabase o Neon
+## Database Neon o PostgreSQL compatibile
 
 1. Crea un database PostgreSQL.
-2. Inserisci la connection string pooled in `DATABASE_URL`.
+2. Inserisci la connection string pooled in `DATABASE_URL` e quella diretta in `DIRECT_DATABASE_URL`.
 3. Applica le migrazioni con `npm run db:push` oppure esegui i file in `drizzle/`.
 4. Esegui `npm run db:seed` per creare il primo centro e i dati di verifica.
 5. Imposta le stesse variabili nel progetto Vercel.
@@ -44,9 +44,9 @@ Per più clienti, abilita Supabase Auth, crea o invita l'utente e usa la stessa 
 
 Lo schema è multi-organizzazione e comprende: organizzazioni, membri, clienti, appuntamenti, opportunità, messaggi, lead, integrazioni, abbonamenti e audit log.
 
-## Distribuzione Vercel
+## Distribuzione Render
 
-Collega la repository a Vercel, imposta le variabili elencate in `.env.example` e usa i comandi standard Next.js. `vercel.json` configura l'ottimizzazione quotidiana alle 06:00 UTC.
+Collega la repository a Render tramite il Blueprint `render.yaml`, imposta le variabili elencate in `.env.example` e usa Neon per PostgreSQL. Il workflow GitHub Actions esegue l'ottimizzazione quotidiana alle 06:00 UTC senza richiedere un Cron Job Render a pagamento.
 
 Prima del go-live configura un dominio reale, completa privacy e termini con i dati societari e registra su Meta gli URL del webhook WhatsApp.
 

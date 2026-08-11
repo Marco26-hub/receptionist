@@ -5,6 +5,6 @@ export default defineConfig({
   schema: "./db/schema.ts",
   dialect: "postgresql",
   dbCredentials: {
-    url: process.env.DATABASE_URL || "postgresql://placeholder:placeholder@localhost:5432/agendapiena",
+    url: process.env.DIRECT_DATABASE_URL || process.env.DATABASE_URL || "postgresql://placeholder:placeholder@localhost:5432/agendapiena",
   },
 });
