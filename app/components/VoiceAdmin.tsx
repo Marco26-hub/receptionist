@@ -24,6 +24,7 @@ import {
   Trash2,
   Volume2,
 } from "lucide-react";
+import { voiceGreeting } from "../lib/voice-language";
 import type { VoiceFaq, VoiceService, VoiceTranscriptTurn } from "../../db/schema";
 import type { VoiceCategory } from "../lib/voice-categories";
 
@@ -109,11 +110,9 @@ export function VoiceAdmin({ initialData, categories }: Props) {
     setAgent((current) => ({
       ...current,
       language,
-      greeting: language === "en-US"
-        ? `Hello, I’m the virtual assistant for ${businessName}. How can I help?`
-        : `Buongiorno, sono l’assistente virtuale di ${businessName}. Come posso aiutarla?`,
+      greeting: voiceGreeting(language, businessName),
     }));
-    setNotice(language.includes(",") ? "Riconoscimento automatico attivo: ascolta la lingua della persona e risponde in italiano o inglese." : "Lingua aggiornata. Controlla il saluto prima di salvare.");
+    setNotice(language.includes(",") ? "Riconoscimento automatico attivo: saluta in italiano, poi continua solo nella lingua usata dalla persona." : "Lingua aggiornata. Controlla il saluto prima di salvare.");
   }
 
   function chooseScenario(scenario: Scenario) {

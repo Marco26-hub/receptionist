@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import type { VoiceFaq, VoiceService } from "../../db/schema";
 import { siteUrl } from "./site";
 import { ValidationError } from "./validation";
+import { safeVoiceGreeting, voiceLanguageRule } from "./voice-language";
 
 const RETELL_BASE_URL = "https://api.retellai.com";
 
@@ -138,7 +139,8 @@ export async function syncAndPublishRetellAgent(input: { agentId: string; name: 
     transfer_destination: { type: "predefined", number: input.transferNumber, ignore_e164_validation: false },
     transfer_option: { type: "cold_transfer", show_transferee_as_caller: false },
   });
-  const languageRule = input.language === "en-US" ? "Speak English." : input.language.includes(",") ? "Speak Italian or English, always matching the language used by the caller. Do not mix languages in the same answer." : "Parla in italiano.";
+  const languageRule = voiceLanguageRule(input.language);
+  const greeting = safeVoiceGreeting(input.language, input.name, input.greeting);
   await retellRequest(`/update-retell-llm/${encodeURIComponent(agent.response_engine.llm_id)}`, {
     method: "PATCH",
     body: JSON.stringify({
@@ -147,7 +149,7 @@ export async function syncAndPublishRetellAgent(input: { agentId: string; name: 
       model_high_priority: false,
       tool_call_strict_mode: true,
       start_speaker: "agent",
-      begin_message: input.greeting,
+      begin_message: greeting,
       general_prompt: `${input.systemPrompt}\n\n${languageRule}\nREGOLE OPERATIVE\n- Per un nuovo appuntamento usa prima controlla_disponibilita e poi prenota_appuntamento, soltanto dopo la conferma esplicita.\n- Per spostare o annullare usa prima trova_appuntamenti e verifica nome e telefono.\n- Per spostare controlla anche la nuova disponibilità e chiedi conferma prima di usare sposta_appuntamento.\n- Non dire mai che una prenotazione è creata, spostata o annullata finché lo strumento non restituisce esito positivo.\n- Se mancano dati, il servizio non è riconosciuto o uno strumento fallisce, coinvolgi lo staff.` + knowledgeText(input.services, input.faqs),
       general_tools: tools,
     }),

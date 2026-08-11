@@ -1,4 +1,5 @@
 import type { VoiceFaq, VoiceService } from "../../db/schema";
+import { safeVoiceGreeting, voiceGreeting } from "./voice-language";
 import { defaultVoiceFaqs, defaultVoicePrompt } from "./voice-demo";
 
 type ModelResult = { text: string; provider: "openrouter" | "openai" | "template" };
@@ -57,10 +58,10 @@ export async function generateVoiceAgentWithAI(input: { businessName: string; to
   const serviceText = input.services.map((service) => `${service.name}: ${service.durationMinutes} minuti, €${(service.priceCents / 100).toFixed(0)}`).join("\n");
   const result = await callModel(
     "Configura un assistente telefonico per un’attività italiana su appuntamento. Devi essere prudente: niente diagnosi, promesse, sconti inventati o disponibilità non verificate. Restituisci solo JSON valido.",
-    `Attività: ${input.businessName}\nCategoria: ${input.categoryLabel}\nLingua: ${languageLabel(input.language)}\nTono: ${input.tone}\nRegole specifiche: ${input.categoryRules}\nServizi:\n${serviceText || "Nessuno ancora inserito"}\n\nCrea questo JSON: {"greeting":"massimo 24 parole, dichiara che è un assistente virtuale","systemPrompt":"istruzioni operative chiare nella lingua scelta, incluse le regole specifiche","faqs":[{"question":"...","answer":"..."}]}. Inserisci 4-6 FAQ utili. In modalità bilingue rispondi nella lingua usata dalla persona. Se una richiesta è delicata o non prevista deve coinvolgere una persona.`,
+    `Attività: ${input.businessName}\nCategoria: ${input.categoryLabel}\nLingua: ${languageLabel(input.language)}\nTono: ${input.tone}\nRegole specifiche: ${input.categoryRules}\nServizi:\n${serviceText || "Nessuno ancora inserito"}\n\nCrea questo JSON: {"greeting":"massimo 24 parole, dichiara che è un assistente virtuale","systemPrompt":"istruzioni operative chiare nella lingua scelta, incluse le regole specifiche","faqs":[{"question":"...","answer":"..."}]}. Inserisci 4-6 FAQ utili. In modalità automatica il greeting deve essere soltanto in italiano; dopo la prima frase del cliente usa soltanto la lingua rilevata. Non unire mai italiano e inglese nella stessa risposta e non ripetere traduzioni. Se una richiesta è delicata o non prevista deve coinvolgere una persona.`,
     true,
   );
-  if (!result) return { greeting: `Buongiorno, sono l’assistente virtuale di ${input.businessName}. Come posso aiutarti?`, systemPrompt: defaultVoicePrompt, faqs: input.currentFaqs.length ? input.currentFaqs : defaultVoiceFaqs, provider: "template" as const };
+  if (!result) return { greeting: voiceGreeting(input.language, input.businessName), systemPrompt: defaultVoicePrompt, faqs: input.currentFaqs.length ? input.currentFaqs : defaultVoiceFaqs, provider: "template" as const };
   try {
     const parsed = parseJsonObject(result.text);
     const faqs = Array.isArray(parsed.faqs) ? parsed.faqs.slice(0, 10).map((item) => {
@@ -68,13 +69,13 @@ export async function generateVoiceAgentWithAI(input: { businessName: string; to
       return { question: String(row.question || "").slice(0, 200), answer: String(row.answer || "").slice(0, 600) };
     }).filter((item) => item.question && item.answer) : [];
     return {
-      greeting: String(parsed.greeting || "").slice(0, 300) || `Buongiorno, sono l’assistente virtuale di ${input.businessName}. Come posso aiutarti?`,
+      greeting: safeVoiceGreeting(input.language, input.businessName, String(parsed.greeting || "").slice(0, 300)),
       systemPrompt: String(parsed.systemPrompt || "").slice(0, 8000) || defaultVoicePrompt,
       faqs: faqs.length ? faqs : defaultVoiceFaqs,
       provider: result.provider,
     };
   } catch {
-    return { greeting: `Buongiorno, sono l’assistente virtuale di ${input.businessName}. Come posso aiutarti?`, systemPrompt: defaultVoicePrompt, faqs: input.currentFaqs.length ? input.currentFaqs : defaultVoiceFaqs, provider: "template" as const };
+    return { greeting: voiceGreeting(input.language, input.businessName), systemPrompt: defaultVoicePrompt, faqs: input.currentFaqs.length ? input.currentFaqs : defaultVoiceFaqs, provider: "template" as const };
   }
 }
 
@@ -97,7 +98,7 @@ function fallbackSimulation(scenario: string, language: string, prompt: string, 
 export async function simulateVoiceAgent(input: { businessName: string; language: string; prompt: string; scenario: string; systemPrompt: string; services: VoiceService[]; faqs: VoiceFaq[] }) {
   const context = `Attività: ${input.businessName}\nServizi approvati: ${JSON.stringify(input.services)}\nFAQ approvate: ${JSON.stringify(input.faqs)}\nIstruzioni: ${input.systemPrompt}`;
   const result = await callModel(
-    `Simula una sola risposta di un assistente telefonico. Lingua: ${languageLabel(input.language)}. In modalità bilingue usa la lingua del cliente. Massimo 55 parole. Non dire di aver eseguito azioni reali. Le disponibilità sono solo dimostrative. Sulle richieste cliniche non dare consigli e coinvolgi una persona.`,
+    `Simula una sola risposta di un assistente telefonico. Lingua: ${languageLabel(input.language)}. In modalità automatica usa esclusivamente la lingua del cliente: mai frasi bilingui, mai traduzioni ripetute. Massimo 55 parole. Non dire di aver eseguito azioni reali. Le disponibilità sono solo dimostrative. Sulle richieste cliniche non dare consigli e coinvolgi una persona.`,
     `${context}\n\nCliente: ${input.prompt}`,
   );
   const output = result?.text || fallbackSimulation(input.scenario, input.language, input.prompt, input.businessName);

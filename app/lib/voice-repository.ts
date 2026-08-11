@@ -16,6 +16,7 @@ import {
 import { normalizePhone } from "./security";
 import { ValidationError } from "./validation";
 import { defaultVoiceFaqs, defaultVoicePrompt, defaultVoiceServices, demoVoiceAgent, demoVoiceCalls, requiredVoiceScenarioIds, voiceScenarios } from "./voice-demo";
+import { safeVoiceGreeting, voiceGreeting } from "./voice-language";
 
 export type VoiceAgentInput = {
   name: string;
@@ -34,7 +35,7 @@ export type VoiceAgentInput = {
 };
 
 function defaultGreeting(name: string) {
-  return `Buongiorno, sono l’assistente virtuale di ${name}. Come posso aiutarti?`;
+  return voiceGreeting("it-IT", name);
 }
 
 function agentSnapshot(agent: typeof voiceAgents.$inferSelect) {
@@ -93,7 +94,7 @@ export async function getVoiceAdminData(organizationId: string) {
 
   return {
     businessName: organization.name,
-    agent,
+    agent: { ...agent, greeting: safeVoiceGreeting(agent.language, organization.name, agent.greeting) },
     calls: storedCalls.map(({ recordingUrl, ...call }) => ({ ...call, hasRecording: Boolean(recordingUrl) })),
     tests,
     scenarios: voiceScenarios,
