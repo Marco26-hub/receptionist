@@ -116,3 +116,27 @@ test("ships a guarded end-to-end voice workflow", async () => {
   assert.match(admin, /Automatico: Italiano \+ English/);
   assert.match(runbook, /Metti in pausa/);
 });
+
+test("publishes clear pricing with volumes, setup and overage costs", async () => {
+  const [pricing, voice] = await Promise.all([
+    read("app/prezzi/page.tsx"),
+    read("app/assistente-vocale-ai/page.tsx"),
+  ]);
+  for (const text of [pricing, voice]) {
+    assert.match(text, /Voce Base/);
+    assert.match(text, /Voce Attività/);
+    assert.match(text, /Voce Azienda/);
+    assert.match(text, /300 minuti/);
+    assert.match(text, /700 minuti/);
+    assert.match(text, /1\.500 minuti/);
+    assert.match(text, /€0,40/);
+    assert.match(text, /€0,35/);
+    assert.match(text, /€0,30/);
+    assert.doesNotMatch(text, /lowPrice: "189"|highPrice: "499"|parte da €490/);
+  }
+  assert.match(pricing, /Prezzi IVA esclusa/);
+  assert.match(pricing, /Numero e traffico telefonico non inclusi/);
+  assert.match(pricing, /Posso aumentare o ridurre il piano/);
+  assert.match(pricing, /riduzione parte dal rinnovo successivo, senza penali/);
+  assert.match(voice, /Avvio €590 una tantum/);
+});

@@ -67,23 +67,44 @@ const sectors = [
 
 const voicePlans = [
   {
-    name: "Start",
-    price: "€189",
+    name: "Voce Base",
+    price: "€199",
     note: "al mese",
-    items: ["500 minuti inclusi", "Italiano oppure inglese", "Agenda e prenotazioni", "Analisi scaricabili", "€0,25 per minuto extra"],
+    setup: "Avvio €590 una tantum",
+    items: [
+      "300 minuti: circa 100 conversazioni da 3 minuti.",
+      "Una lingua: scegli italiano oppure inglese.",
+      "Agenda: propone gli orari e prenota dopo la conferma.",
+      "Prove scaricabili: controlli le risposte prima dell’attivazione.",
+      "Oltre soglia: €0,40 per ogni minuto aggiuntivo.",
+    ],
   },
   {
-    name: "Professionale",
-    price: "€299",
+    name: "Voce Attività",
+    price: "€349",
     note: "al mese",
+    setup: "Avvio €790 una tantum",
     featured: true,
-    items: ["1.200 minuti inclusi", "Riconoscimento italiano / inglese", "Passaggio allo staff", "Audio e trascrizioni", "€0,20 per minuto extra"],
+    items: [
+      "700 minuti: circa 230 conversazioni da 3 minuti.",
+      "Lingua automatica: riconosce italiano o inglese.",
+      "Passaggio al personale: inoltra le richieste che lo richiedono.",
+      "Registro chiamate: salva trascrizione, riepilogo e risultato.",
+      "Oltre soglia: €0,35 per ogni minuto aggiuntivo.",
+    ],
   },
   {
-    name: "Business",
-    price: "da €499",
+    name: "Voce Azienda",
+    price: "€649",
     note: "al mese",
-    items: ["Da 2.500 minuti", "Più sedi o reparti", "Integrazioni gestionali", "Regole e report su misura", "Assistenza prioritaria"],
+    setup: "Avvio da €990 una tantum",
+    items: [
+      "1.500 minuti: circa 500 conversazioni da 3 minuti.",
+      "Percorsi per reparto: applica regole diverse in base alla richiesta.",
+      "Collegamenti: verifichiamo il gestionale prima del contratto.",
+      "Controllo qualità: evidenzia le conversazioni da rivedere.",
+      "Oltre soglia: €0,30 per ogni minuto aggiuntivo.",
+    ],
   },
 ];
 
@@ -98,7 +119,7 @@ export default function VoiceAssistantPage() {
       areaServed: { "@type": "Country", name: "Italia" },
       url: `${siteUrl}/assistente-vocale-ai`,
       description: "Assistente vocale AI che risponde al telefono, informa sui servizi, gestisce appuntamenti e trasferisce le chiamate allo staff.",
-      offers: { "@type": "AggregateOffer", lowPrice: "189", highPrice: "499", priceCurrency: "EUR", offerCount: "3" },
+      offers: { "@type": "AggregateOffer", lowPrice: "199", highPrice: "649", priceCurrency: "EUR", offerCount: "3" },
     },
     {
       "@context": "https://schema.org",
@@ -183,11 +204,11 @@ export default function VoiceAssistantPage() {
       </section>
 
       <section className="voice-pricing">
-        <div className="voice-pricing-intro"><span>Prezzi trasparenti</span><h2>Un servizio serio, con costi leggibili.</h2><p>La configurazione guidata parte da €490 una tantum: prepariamo il modello del tuo settore, colleghiamo agenda e numero, eseguiamo le prove e andiamo online solo dopo la tua approvazione.</p></div>
+        <div className="voice-pricing-intro"><span>Prezzi trasparenti</span><h2>Un servizio serio, con costi leggibili.</h2><p>Il canone copre il servizio e i minuti indicati. Il costo di avvio copre raccolta delle informazioni, configurazione, collegamento dell’agenda, prove e messa online controllata.</p></div>
         <div className="voice-plan-grid">
-          {voicePlans.map((plan) => <article className={`voice-price-panel${plan.featured ? " featured" : ""}`} key={plan.name}><small>{plan.featured ? "Più scelto" : "Piano Voice"}</small><h3>{plan.name}</h3><strong>{plan.price}</strong><span>{plan.note}</span><ul>{plan.items.map((item) => <li key={item}>{item}</li>)}</ul><a href="#demo">Richiedi una prova</a></article>)}
+          {voicePlans.map((plan) => <article className={`voice-price-panel${plan.featured ? " featured" : ""}`} key={plan.name}><small>{plan.featured ? "Più scelto" : "Segretaria telefonica"}</small><h3>{plan.name}</h3><strong>{plan.price}</strong><span>{plan.note}</span><p className="voice-price-setup">{plan.setup}</p><ul>{plan.items.map((item) => <li key={item}>{item}</li>)}</ul><a href="#demo">Richiedi una prova</a></article>)}
         </div>
-        <p className="voice-price-note">Prezzi IVA esclusa. Eventuali costi telefonici di trasferimento vengono mostrati prima dell’attivazione. Nessun addebito durante la prova in admin.</p>
+        <p className="voice-price-note">Prezzi IVA esclusa. Numero telefonico, traffico dell’operatore, assistenti aggiuntivi e collegamenti speciali non sono inclusi: vengono indicati nella proposta prima dell’attivazione. Nessun addebito durante la prova in admin.</p>
       </section>
 
       <section className="voice-demo" id="demo">
