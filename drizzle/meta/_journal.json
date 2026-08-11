@@ -15,6 +15,20 @@
       "when": 1786397412112,
       "tag": "0001_luxuriant_nico_minoru",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786471340042,
+      "tag": "0002_strong_wrecking_crew",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1786471575264,
+      "tag": "0003_modern_tiger_shark",
+      "breakpoints": true
     }
   ]
 }

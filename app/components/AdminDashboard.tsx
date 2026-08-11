@@ -10,6 +10,7 @@ import {
   CircleDollarSign,
   LogOut,
   MessageSquareText,
+  PhoneCall,
   RefreshCw,
   Search,
   Settings,
@@ -188,6 +189,10 @@ export function AdminDashboard({ initialData, userEmail }: DashboardProps) {
           <a href="/admin/messaggi">
             <MessageSquareText size={18} />
             Messaggi
+          </a>
+          <a href="/admin/voce">
+            <PhoneCall size={18} />
+            Voce AI
           </a>
           <a href="/admin/impostazioni">
             <Settings size={18} />

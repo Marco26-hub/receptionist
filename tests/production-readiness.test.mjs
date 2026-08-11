@@ -69,6 +69,7 @@ test("ships an executable deployment gate and go-live runbook", async () => {
   const [packageJson, checkEnv, runbook] = await Promise.all([read("package.json"), read("scripts/check-env.mjs"), read("GO_LIVE.md")]);
   assert.match(packageJson, /check:env/);
   assert.match(checkEnv, /WHATSAPP_TEMPLATE_NAME/);
+  assert.match(checkEnv, /RETELL_API_KEY/);
   assert.match(checkEnv, /LEGAL_COMPANY_NAME/);
   assert.match(runbook, /api\/health\?deep=1/);
 });
@@ -91,4 +92,27 @@ test("uses the public checkout origin and keeps optimization reruns bounded", as
   assert.match(checkout, /process\.env\.NEXT_PUBLIC_SITE_URL/);
   assert.match(repository, /const remainingSlots = Math\.max\(0, 5 - Number/);
   assert.match(repository, /created < remainingSlots/);
+});
+
+test("ships a guarded end-to-end voice workflow", async () => {
+  const [retell, voiceAi, activation, pause, booking, webhook, admin, runbook] = await Promise.all([
+    read("app/lib/retell.ts"),
+    read("app/lib/voice-ai.ts"),
+    read("app/api/admin/voice/activate/route.ts"),
+    read("app/api/admin/voice/pause/route.ts"),
+    read("app/api/voice/tools/booking/route.ts"),
+    read("app/api/webhooks/retell/route.ts"),
+    read("app/components/VoiceAdmin.tsx"),
+    read("GO_LIVE.md"),
+  ]);
+  assert.match(retell, /verifyRetellSignature/);
+  assert.match(retell, /inbound_agents/);
+  assert.match(retell, /latest_published/);
+  assert.match(voiceAi, /Replies in English/);
+  assert.match(activation, /setRetellPhoneActive/);
+  assert.match(pause, /setRetellPhoneActive/);
+  assert.match(booking, /confirmed/);
+  assert.match(webhook, /x-retell-signature/);
+  assert.match(admin, /Automatico: Italiano \+ English/);
+  assert.match(runbook, /Metti in pausa/);
 });

@@ -43,3 +43,15 @@ Configura nella repository GitHub:
 3. Esegui l'intero ciclo: importazione, analisi, modifica bozza, approvazione, invio, risposta e conversione.
 4. Controlla il workflow GitHub Actions e gli audit log.
 5. Fai verificare Privacy, Termini, DPA, base giuridica dei messaggi e conservazione dei dati.
+
+## 6. Assistente vocale
+
+1. Crea in Retell un assistente con motore Retell LLM e una voce compatibile con le lingue scelte.
+2. Inserisci su Render `RETELL_API_KEY` e, per la preparazione AI, `OPENROUTER_API_KEY` oppure `OPENAI_API_KEY`.
+3. Nell’admin apri `Voce`, inserisci codice assistente, codice voce e numero Retell in formato internazionale (`+39...`).
+4. Scegli italiano, inglese o riconoscimento automatico italiano/inglese. In automatico l’assistente risponde nella lingua usata da chi chiama; per la massima precisione usa una lingua singola quando possibile.
+5. Salva, esegui almeno una prova, segna l’assistente come pronta e solo dopo attiva il numero.
+6. Verifica una chiamata reale completa: risposta, disponibilità, conferma appuntamento, trasferimento allo staff, webhook e registro chiamate.
+7. Premi `Metti in pausa` e chiama di nuovo il numero: Retell non deve più inoltrare le chiamate all’assistente.
+
+La registrazione è disattivata di base. Prima di abilitarla vanno definiti informativa, consenso, accessi e tempi di conservazione.

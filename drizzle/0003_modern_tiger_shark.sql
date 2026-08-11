@@ -1,0 +1,1 @@
+ALTER TABLE "voice_agents" ADD COLUMN "category" text DEFAULT 'beauty' NOT NULL;

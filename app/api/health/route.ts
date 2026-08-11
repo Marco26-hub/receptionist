@@ -7,6 +7,8 @@ export async function GET(request: Request) {
     database: isDatabaseConfigured(),
     session: Boolean(process.env.SESSION_SECRET && process.env.SESSION_SECRET.length >= 32),
     ai: Boolean(process.env.OPENAI_API_KEY && process.env.AI_DRAFTS_ENABLED === "true"),
+    voice: Boolean(process.env.RETELL_API_KEY),
+    voiceAi: Boolean(process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY),
     whatsapp: Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID && process.env.WHATSAPP_APP_SECRET && process.env.WHATSAPP_TEMPLATE_NAME),
     payments: Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_PRICE_ID && process.env.STRIPE_WEBHOOK_SECRET),
     cron: Boolean(process.env.CRON_SECRET && process.env.CRON_SECRET.length >= 24),

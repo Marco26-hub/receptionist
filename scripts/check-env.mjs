@@ -24,3 +24,8 @@ if (failed.length) {
 } else {
   console.log("Configurazione essenziale pronta. Verifica ora GET /api/health?deep=1 sul deploy.");
 }
+
+const voiceMissing = ["RETELL_API_KEY", "OPENROUTER_API_KEY oppure OPENAI_API_KEY"].filter((name) => name === "RETELL_API_KEY"
+  ? !process.env.RETELL_API_KEY
+  : !(process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY));
+if (voiceMissing.length) console.warn("Assistente vocale non ancora completo:\n" + voiceMissing.map((name) => `- ${name}`).join("\n"));

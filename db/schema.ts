@@ -4,6 +4,8 @@ export const memberRole = pgEnum("member_role", ["owner", "manager", "staff"]);
 export const opportunityType = pgEnum("opportunity_type", ["inactive_client", "empty_slot", "unfinished_plan", "follow_up"]);
 export const opportunityStatus = pgEnum("opportunity_status", ["new", "drafted", "approved", "sent", "converted", "dismissed"]);
 export const messageStatus = pgEnum("message_status", ["draft", "approved", "sending", "sent", "delivered", "read", "replied", "received", "failed"]);
+export const voiceAgentStatus = pgEnum("voice_agent_status", ["draft", "testing", "ready", "live", "paused"]);
+export const voiceCallStatus = pgEnum("voice_call_status", ["registered", "ringing", "in_progress", "completed", "failed"]);
 
 export const organizations = pgTable("organizations", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -139,3 +141,81 @@ export const auditLogs = pgTable("audit_logs", {
   metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [index("audit_org_created_idx").on(table.organizationId, table.createdAt)]);
+
+export type VoiceService = { name: string; durationMinutes: number; priceCents: number; enabled: boolean };
+export type VoiceFaq = { question: string; answer: string };
+export type VoiceTranscriptTurn = { role: "agent" | "customer"; text: string; at?: number };
+
+export const voiceAgents = pgTable("voice_agents", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id").references(() => organizations.id, { onDelete: "cascade" }).notNull(),
+  name: text("name").default("Assistente AgendaPiena").notNull(),
+  category: text("category").default("beauty").notNull(),
+  status: voiceAgentStatus("status").default("draft").notNull(),
+  provider: text("provider").default("retell").notNull(),
+  model: text("model").default("gpt-5-mini").notNull(),
+  voiceId: text("voice_id").default("retell-Cimo").notNull(),
+  language: text("language").default("it-IT").notNull(),
+  greeting: text("greeting").notNull(),
+  systemPrompt: text("system_prompt").notNull(),
+  services: jsonb("services").$type<VoiceService[]>().default([]).notNull(),
+  faqs: jsonb("faqs").$type<VoiceFaq[]>().default([]).notNull(),
+  transferNumber: text("transfer_number"),
+  bookingEnabled: boolean("booking_enabled").default(true).notNull(),
+  recordingEnabled: boolean("recording_enabled").default(false).notNull(),
+  testMode: boolean("test_mode").default(true).notNull(),
+  retellAgentId: text("retell_agent_id"),
+  retellPhoneNumber: text("retell_phone_number"),
+  publishedVersion: integer("published_version").default(0).notNull(),
+  lastTestedAt: timestamp("last_tested_at", { withTimezone: true }),
+  publishedAt: timestamp("published_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [uniqueIndex("voice_agents_org_idx").on(table.organizationId), uniqueIndex("voice_agents_retell_idx").on(table.retellAgentId)]);
+
+export const voiceAgentVersions = pgTable("voice_agent_versions", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id").references(() => organizations.id, { onDelete: "cascade" }).notNull(),
+  agentId: uuid("agent_id").references(() => voiceAgents.id, { onDelete: "cascade" }).notNull(),
+  version: integer("version").notNull(),
+  configuration: jsonb("configuration").$type<Record<string, unknown>>().notNull(),
+  createdBy: text("created_by").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [uniqueIndex("voice_agent_versions_unique_idx").on(table.agentId, table.version), index("voice_agent_versions_org_idx").on(table.organizationId, table.createdAt)]);
+
+export const voiceCalls = pgTable("voice_calls", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id").references(() => organizations.id, { onDelete: "cascade" }).notNull(),
+  agentId: uuid("agent_id").references(() => voiceAgents.id, { onDelete: "set null" }),
+  customerId: uuid("customer_id").references(() => customers.id, { onDelete: "set null" }),
+  externalCallId: text("external_call_id"),
+  direction: text("direction").default("inbound").notNull(),
+  mode: text("mode").default("test").notNull(),
+  status: voiceCallStatus("status").default("registered").notNull(),
+  fromNumber: text("from_number"),
+  toNumber: text("to_number"),
+  durationSeconds: integer("duration_seconds").default(0).notNull(),
+  costCents: integer("cost_cents").default(0).notNull(),
+  summary: text("summary"),
+  outcome: text("outcome"),
+  transcript: jsonb("transcript").$type<VoiceTranscriptTurn[]>().default([]).notNull(),
+  extractedData: jsonb("extracted_data").$type<Record<string, unknown>>().default({}).notNull(),
+  recordingUrl: text("recording_url"),
+  startedAt: timestamp("started_at", { withTimezone: true }),
+  endedAt: timestamp("ended_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [uniqueIndex("voice_calls_external_idx").on(table.externalCallId), index("voice_calls_org_created_idx").on(table.organizationId, table.createdAt)]);
+
+export const voiceTestRuns = pgTable("voice_test_runs", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id").references(() => organizations.id, { onDelete: "cascade" }).notNull(),
+  agentId: uuid("agent_id").references(() => voiceAgents.id, { onDelete: "cascade" }).notNull(),
+  scenario: text("scenario").notNull(),
+  status: text("status").notNull(),
+  input: text("input").notNull(),
+  output: text("output").notNull(),
+  checks: jsonb("checks").$type<Array<{ label: string; passed: boolean }>>().default([]).notNull(),
+  createdBy: text("created_by").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [index("voice_test_runs_org_created_idx").on(table.organizationId, table.createdAt)]);

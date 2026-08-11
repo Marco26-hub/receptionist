@@ -18,7 +18,7 @@ import { siteUrl } from "../lib/site";
 export const metadata: Metadata = {
   title: "Assistente vocale AI che risponde al telefono",
   description:
-    "Un assistente vocale AI per centri estetici, parrucchieri, cliniche e studi: risponde alle chiamate, fissa appuntamenti e passa la telefonata allo staff quando serve.",
+    "Assistente vocale AI in italiano e inglese per PMI: risponde alle chiamate, fissa appuntamenti e passa la telefonata allo staff quando serve.",
   alternates: { canonical: "/assistente-vocale-ai" },
   openGraph: {
     title: "AgendaPiena Voice | L’assistente AI che risponde al telefono",
@@ -50,7 +50,42 @@ const capabilities = [
   { icon: Headphones, title: "Passa la chiamata a una persona", copy: "Se la richiesta è delicata, urgente o non prevista, coinvolge subito il tuo staff." },
 ];
 
-const sectors = ["Centri estetici", "Parrucchieri e barber shop", "Cliniche estetiche", "Studi dentistici", "Fisioterapia", "Spa e wellness", "Poliambulatori", "Palestre e personal trainer"];
+const sectors = [
+  "Centri estetici e parrucchieri",
+  "Cliniche e studi dentistici",
+  "Officine, gommisti e carrozzerie",
+  "Panetterie, pasticcerie e gastronomie",
+  "Ristoranti, bar e locali",
+  "Idraulici, elettricisti e fabbri",
+  "Veterinari e servizi per animali",
+  "Palestre e centri sportivi",
+  "Hotel, B&B e strutture ricettive",
+  "Agenzie immobiliari",
+  "Studi professionali",
+  "Negozi e assistenza prodotti",
+];
+
+const voicePlans = [
+  {
+    name: "Start",
+    price: "€189",
+    note: "al mese",
+    items: ["500 minuti inclusi", "Italiano oppure inglese", "Agenda e prenotazioni", "Analisi scaricabili", "€0,25 per minuto extra"],
+  },
+  {
+    name: "Professionale",
+    price: "€299",
+    note: "al mese",
+    featured: true,
+    items: ["1.200 minuti inclusi", "Riconoscimento italiano / inglese", "Passaggio allo staff", "Audio e trascrizioni", "€0,20 per minuto extra"],
+  },
+  {
+    name: "Business",
+    price: "da €499",
+    note: "al mese",
+    items: ["Da 2.500 minuti", "Più sedi o reparti", "Integrazioni gestionali", "Regole e report su misura", "Assistenza prioritaria"],
+  },
+];
 
 export default function VoiceAssistantPage() {
   const schemas = [
@@ -63,6 +98,7 @@ export default function VoiceAssistantPage() {
       areaServed: { "@type": "Country", name: "Italia" },
       url: `${siteUrl}/assistente-vocale-ai`,
       description: "Assistente vocale AI che risponde al telefono, informa sui servizi, gestisce appuntamenti e trasferisce le chiamate allo staff.",
+      offers: { "@type": "AggregateOffer", lowPrice: "189", highPrice: "499", priceCurrency: "EUR", offerCount: "3" },
     },
     {
       "@context": "https://schema.org",
@@ -71,6 +107,7 @@ export default function VoiceAssistantPage() {
         ["Sembra una voce registrata?", "No. La conversazione è dinamica: l’assistente ascolta, comprende la richiesta e risponde in modo naturale in base alle informazioni approvate."],
         ["Può trasferire la chiamata?", "Sì. Quando la persona lo chiede o la richiesta richiede lo staff, la chiamata può essere trasferita a un numero concordato."],
         ["Può dare consigli medici?", "No. L’assistente gestisce informazioni organizzative e appuntamenti. Le domande cliniche vengono sempre affidate a un professionista."],
+        ["Può parlare inglese?", "Sì. In modalità automatica riconosce se la persona parla italiano o inglese e risponde nella stessa lingua."],
       ].map(([name, text]) => ({ "@type": "Question", name, acceptedAnswer: { "@type": "Answer", text } })),
     },
   ];
@@ -93,7 +130,7 @@ export default function VoiceAssistantPage() {
             </div>
             <div className="voice-trust">
               <span><Check size={15} /> Sempre sotto il tuo controllo</span>
-              <span><Check size={15} /> Parla in italiano naturale</span>
+              <span><Check size={15} /> Riconosce italiano e inglese</span>
               <span><Check size={15} /> Attivo 24 ore su 24</span>
             </div>
           </div>
@@ -146,8 +183,11 @@ export default function VoiceAssistantPage() {
       </section>
 
       <section className="voice-pricing">
-        <div><span>Accesso iniziale</span><h2>Partiamo con un numero, uno scenario e risultati misurabili.</h2><p>Configuriamo voce, servizi, risposte e agenda. Poi proviamo chiamate reali in un ambiente controllato prima di attivare il servizio al pubblico.</p></div>
-        <div className="voice-price-panel"><small>Piano Voice</small><strong>da €149</strong><span>al mese · traffico incluso in base al piano</span><ul><li>Numero telefonico dedicato</li><li>Risposte e prenotazioni automatiche</li><li>Riepilogo di ogni chiamata</li><li>Passaggio allo staff</li></ul><a href="#demo">Richiedi disponibilità</a></div>
+        <div className="voice-pricing-intro"><span>Prezzi trasparenti</span><h2>Un servizio serio, con costi leggibili.</h2><p>La configurazione guidata parte da €490 una tantum: prepariamo il modello del tuo settore, colleghiamo agenda e numero, eseguiamo le prove e andiamo online solo dopo la tua approvazione.</p></div>
+        <div className="voice-plan-grid">
+          {voicePlans.map((plan) => <article className={`voice-price-panel${plan.featured ? " featured" : ""}`} key={plan.name}><small>{plan.featured ? "Più scelto" : "Piano Voice"}</small><h3>{plan.name}</h3><strong>{plan.price}</strong><span>{plan.note}</span><ul>{plan.items.map((item) => <li key={item}>{item}</li>)}</ul><a href="#demo">Richiedi una prova</a></article>)}
+        </div>
+        <p className="voice-price-note">Prezzi IVA esclusa. Eventuali costi telefonici di trasferimento vengono mostrati prima dell’attivazione. Nessun addebito durante la prova in admin.</p>
       </section>
 
       <section className="voice-demo" id="demo">
@@ -161,6 +201,7 @@ export default function VoiceAssistantPage() {
         <details><summary>Devo cambiare il mio numero?</summary><p>No. Possiamo partire con un nuovo numero per la prova e, in seguito, inoltrare le chiamate dal numero che usi già.</p></details>
         <details><summary>Può trasferire la chiamata?</summary><p>Sì. Se la persona lo chiede o la richiesta richiede lo staff, la telefonata viene passata al numero concordato.</p></details>
         <details><summary>Può dare consigli medici?</summary><p>No. Gestisce informazioni organizzative e appuntamenti. Ogni domanda clinica viene affidata a un professionista.</p></details>
+        <details><summary>Riconosce automaticamente la lingua?</summary><p>Sì. In modalità automatica ascolta se la persona parla italiano o inglese e continua nella stessa lingua. Quando tutta la clientela usa una sola lingua, quella modalità offre la precisione migliore.</p></details>
       </section>
       <SiteFooter />
     </main>
