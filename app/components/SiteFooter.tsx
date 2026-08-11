@@ -14,6 +14,7 @@ export function SiteFooter() {
       <div>
         <strong>Scopri</strong>
         <Link href="/prodotto">Prodotto</Link>
+        <Link href="/assistente-vocale-ai">Assistente vocale AI</Link>
         <Link href="/come-funziona">Come funziona</Link>
         <Link href="/prezzi">Prezzi</Link>
         <Link href="/contatti">Contatti</Link>

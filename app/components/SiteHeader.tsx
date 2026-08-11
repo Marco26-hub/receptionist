@@ -11,6 +11,7 @@ export function SiteHeader() {
         </Link>
         <div className="nav-links">
           <Link href="/prodotto">Prodotto</Link>
+          <Link href="/assistente-vocale-ai">Voce AI</Link>
           <Link href="/come-funziona">Come funziona</Link>
           <Link href="/settori">Per chi è</Link>
           <Link href="/prezzi">Prezzi</Link>
