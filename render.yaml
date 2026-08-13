@@ -69,6 +69,8 @@ services:
         value: "false"
       - key: LEGAL_COMPANY_NAME
         value: Social Automation di Marco Dibenedetto
+      - key: LEGAL_OWNER_NAME
+        value: Marco Dibenedetto
       - key: LEGAL_VAT_NUMBER
         value: "03786790133"
       - key: LEGAL_TAX_CODE

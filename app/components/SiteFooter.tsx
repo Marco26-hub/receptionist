@@ -35,7 +35,7 @@ export function SiteFooter() {
         ))}
       </div>
       <div className="footer-bottom">
-        <span>© 2026 AgendaPiena AI · {legalEntity.name} · P.IVA {legalEntity.vatNumber}</span>
+        <span>© 2026 AgendaPiena AI · di {legalEntity.ownerName} · P.IVA {legalEntity.vatNumber}</span>
         <Link href="/privacy">Privacy</Link>
         <Link href="/termini">Termini</Link>
       </div>
