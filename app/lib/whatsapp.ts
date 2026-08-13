@@ -1,11 +1,15 @@
 import { normalizePhone } from "./security";
+import { ValidationError } from "./validation";
 
 export async function sendWhatsAppText(input: { to: string; body: string }) {
   const token = process.env.WHATSAPP_ACCESS_TOKEN;
   const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-  if (!token || !phoneNumberId) return { id: `demo-wa-${Date.now()}`, demo: true };
   const templateName = process.env.WHATSAPP_TEMPLATE_NAME;
-  const payload = templateName ? {
+  if (!token || !phoneNumberId || !templateName) {
+    if (process.env.NODE_ENV === "production") throw new ValidationError("WhatsApp non è collegato: il messaggio non è stato inviato. Apri Stato del motore per completare Meta.");
+    return { id: `demo-wa-${Date.now()}`, demo: true };
+  }
+  const payload = {
     messaging_product: "whatsapp",
     recipient_type: "individual",
     to: normalizePhone(input.to),
@@ -15,7 +19,7 @@ export async function sendWhatsAppText(input: { to: string; body: string }) {
       language: { code: process.env.WHATSAPP_TEMPLATE_LANGUAGE || "it" },
       components: [{ type: "body", parameters: [{ type: "text", text: input.body }] }],
     },
-  } : { messaging_product: "whatsapp", recipient_type: "individual", to: normalizePhone(input.to), type: "text", text: { preview_url: false, body: input.body } };
+  };
   const response = await fetch(`https://graph.facebook.com/${process.env.WHATSAPP_API_VERSION || "v23.0"}/${phoneNumberId}/messages`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },

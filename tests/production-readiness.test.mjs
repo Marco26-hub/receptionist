@@ -42,6 +42,28 @@ test("scopes operational data and approval to the authenticated organization", a
   assert.match(generate, /getOpportunityDraftContext/);
 });
 
+test("allows same-origin local E2E actions while keeping production origin checks", async () => {
+  const apiAuth = await read("app/lib/api-auth.ts");
+  assert.match(apiAuth, /NODE_ENV !== "production" && origin === requestOrigin/);
+  assert.match(apiAuth, /NEXT_PUBLIC_SITE_URL/);
+});
+
+test("makes operational fallbacks visible and blocks fake production sends", async () => {
+  const [runtime, dashboard, voice, whatsapp, ai] = await Promise.all([
+    read("app/lib/runtime-status.ts"),
+    read("app/components/AdminDashboard.tsx"),
+    read("app/components/VoiceAdmin.tsx"),
+    read("app/lib/whatsapp.ts"),
+    read("app/lib/ai.ts"),
+  ]);
+  assert.match(runtime, /Invio reale bloccato/);
+  assert.match(dashboard, /Nessun fallback nascosto/);
+  assert.match(voice, /Modello locale di sicurezza/);
+  assert.match(whatsapp, /NODE_ENV === "production"/);
+  assert.match(whatsapp, /messaggio non è stato inviato/);
+  assert.match(ai, /fallbackReason/);
+});
+
 test("includes data ingestion, conversion, settings and explicit AI privacy opt-in", async () => {
   await Promise.all([
     "app/api/admin/customers/route.ts",

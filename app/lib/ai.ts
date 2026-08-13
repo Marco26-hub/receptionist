@@ -6,7 +6,7 @@ function fallbackDraft(input: DraftInput) {
 }
 
 export async function generateWhatsAppDraft(input: DraftInput) {
-  if (!process.env.OPENAI_API_KEY || process.env.AI_DRAFTS_ENABLED !== "true") return { body: fallbackDraft(input), provider: "template" as const };
+  if (!process.env.OPENAI_API_KEY || process.env.AI_DRAFTS_ENABLED !== "true") return { body: fallbackDraft(input), provider: "template" as const, fallbackReason: "AI non collegata o disattivata" };
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
@@ -18,8 +18,8 @@ export async function generateWhatsAppDraft(input: DraftInput) {
       max_output_tokens: 140,
     }),
   });
-  if (!response.ok) return { body: fallbackDraft(input), provider: "template" as const };
+  if (!response.ok) return { body: fallbackDraft(input), provider: "template" as const, fallbackReason: `OpenAI non disponibile (${response.status})` };
   const data = await response.json() as { output_text?: string; output?: Array<{ content?: Array<{ text?: string }> }> };
   const body = data.output_text || data.output?.flatMap((item) => item.content || []).map((item) => item.text || "").join("").trim();
-  return { body: body || fallbackDraft(input), provider: "openai" as const };
+  return body ? { body, provider: "openai" as const } : { body: fallbackDraft(input), provider: "template" as const, fallbackReason: "OpenAI ha restituito una risposta vuota" };
 }

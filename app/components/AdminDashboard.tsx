@@ -6,6 +6,7 @@ import {
   CalendarDays,
   CalendarCheck,
   Check,
+  CircleCheck,
   ChevronRight,
   CircleDollarSign,
   LogOut,
@@ -16,9 +17,11 @@ import {
   Settings,
   ListChecks,
   Sparkles,
+  TriangleAlert,
   UsersRound,
   X,
 } from "lucide-react";
+import type { RuntimeServiceStatus } from "../lib/runtime-status";
 
 type Opportunity = {
   id: string;
@@ -44,6 +47,7 @@ type DashboardProps = {
       conversionRate: number;
     };
     opportunities: Opportunity[];
+    services: RuntimeServiceStatus[];
     mode: "demo" | "empty" | "live";
   };
   userEmail: string;
@@ -118,7 +122,7 @@ export function AdminDashboard({ initialData, userEmail }: DashboardProps) {
         items.map((item) => (item.id === updated.id ? updated : item)),
       );
       setNotice(
-        `Nuova bozza creata con ${result.provider === "openai" ? "AI" : "modello sicuro"}.`,
+        result.provider === "openai" ? "Nuova bozza creata con AI." : `Fallback visibile: testo standard locale (${result.fallbackReason || "AI non disponibile"}).`,
       );
     } else setNotice(result.error);
   }
@@ -230,6 +234,10 @@ export function AdminDashboard({ initialData, userEmail }: DashboardProps) {
             Analizza ora
           </button>
         </header>
+        <section className="admin-engine-status" aria-label="Stato dei servizi">
+          <header><div><span>Stato del motore</span><strong>Nessun fallback nascosto</strong></div><small>{initialData.services.filter((service) => service.state === "active").length}/{initialData.services.length} servizi reali attivi</small></header>
+          <div>{initialData.services.map((service) => <a className={service.state} href={service.href} key={service.id}>{service.state === "active" ? <CircleCheck size={17} /> : <TriangleAlert size={17} />}<span><strong>{service.label}</strong><small>{service.detail}</small></span></a>)}</div>
+        </section>
         <section className="metric-grid">
           {metrics.map(({ label, value, icon: Icon }) => (
             <article key={label}>

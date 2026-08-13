@@ -16,6 +16,7 @@ import { demoMetrics, demoOpportunities, demoOrganization } from "./demo-data";
 import { estimateEmptySlotScore, rankOpportunities } from "./optimization";
 import { normalizePhone } from "./security";
 import { isStripePlanKey, stripeIsConfigured, stripePlans } from "./stripe";
+import { getRuntimeServiceStatus } from "./runtime-status";
 
 const ACTIVE_OPPORTUNITY_STATUSES = ["new", "drafted", "approved"] as const;
 const DAY_MS = 86_400_000;
@@ -108,7 +109,8 @@ export async function getBillingIdentity(organizationId: string) {
 }
 
 export async function getDashboardData(organizationId: string) {
-  if (!isDatabaseConfigured()) return { organization: demoOrganization, metrics: demoMetrics, opportunities: demoOpportunities, mode: "demo" as const };
+  const services = getRuntimeServiceStatus();
+  if (!isDatabaseConfigured()) return { organization: demoOrganization, metrics: demoMetrics, opportunities: demoOpportunities, services, mode: "demo" as const };
   const db = getDb();
   const organization = await db.query.organizations.findFirst({ where: eq(organizations.id, organizationId) });
   if (!organization) throw new Error("Attività non trovata");
@@ -152,6 +154,7 @@ export async function getDashboardData(organizationId: string) {
       conversionRate: sent ? Math.round((Number(outcomes?.converted || 0) / sent) * 100) : 0,
     },
     opportunities: rows.map((row) => ({ ...row, customerName: row.customerName?.trim() || "Cliente", phone: row.phone || "", message: row.message || "", status: row.status })),
+    services,
     mode: "live" as const,
   };
 }
@@ -296,7 +299,7 @@ export async function getOrganizationSettings(organizationId: string) {
   if (!isDatabaseConfigured()) return { organization: demoOrganization, integrations: { database: false, ai: false, whatsapp: false, stripe: false }, mode: "demo" as const };
   const organization = await getDb().query.organizations.findFirst({ where: eq(organizations.id, organizationId) });
   if (!organization) throw new Error("Attività non trovata");
-  return { organization, integrations: { database: true, ai: Boolean(process.env.OPENAI_API_KEY && process.env.AI_DRAFTS_ENABLED === "true"), whatsapp: Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID && process.env.WHATSAPP_TEMPLATE_NAME), stripe: Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_PRICE_ID && process.env.STRIPE_WEBHOOK_SECRET) }, mode: "live" as const };
+  return { organization, integrations: { database: true, ai: Boolean(process.env.OPENAI_API_KEY && process.env.AI_DRAFTS_ENABLED === "true"), whatsapp: Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID && process.env.WHATSAPP_TEMPLATE_NAME), stripe: stripeIsConfigured() }, mode: "live" as const };
 }
 
 export async function updateOrganizationSettings(organizationId: string, input: { name: string; city: string | null; toneOfVoice: string; averageTicketCents: number; settings: Record<string, unknown> }) {

@@ -11,6 +11,8 @@ function isSameOrigin(request: Request) {
   if (["GET", "HEAD", "OPTIONS"].includes(request.method)) return true;
   const origin = request.headers.get("origin");
   if (!origin) return process.env.NODE_ENV !== "production";
-  const expected = process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin;
+  const requestOrigin = new URL(request.url).origin;
+  if (process.env.NODE_ENV !== "production" && origin === requestOrigin) return true;
+  const expected = process.env.NEXT_PUBLIC_SITE_URL || requestOrigin;
   return origin === new URL(expected).origin;
 }
