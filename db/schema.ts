@@ -164,6 +164,31 @@ export const auditLogs = pgTable("audit_logs", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [index("audit_org_created_idx").on(table.organizationId, table.createdAt)]);
 
+export const dataRetentionPolicies = pgTable("data_retention_policies", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id").references(() => organizations.id, { onDelete: "cascade" }).notNull(),
+  messageContentDays: integer("message_content_days").default(365).notNull(),
+  voiceTranscriptDays: integer("voice_transcript_days").default(180).notNull(),
+  recordingDays: integer("recording_days").default(30).notNull(),
+  auditLogDays: integer("audit_log_days").default(730).notNull(),
+  lastRunAt: timestamp("last_run_at", { withTimezone: true }),
+  updatedBy: text("updated_by"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [uniqueIndex("data_retention_org_idx").on(table.organizationId)]);
+
+export const privacyRequests = pgTable("privacy_requests", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id").references(() => organizations.id, { onDelete: "cascade" }).notNull(),
+  customerId: uuid("customer_id").references(() => customers.id, { onDelete: "set null" }),
+  requestType: text("request_type").notNull(),
+  status: text("status").default("completed").notNull(),
+  requestedBy: text("requested_by").notNull(),
+  details: jsonb("details").$type<Record<string, unknown>>().default({}).notNull(),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [index("privacy_requests_org_created_idx").on(table.organizationId, table.createdAt)]);
+
 export type VoiceService = { name: string; durationMinutes: number; priceCents: number; enabled: boolean };
 export type VoiceFaq = { question: string; answer: string };
 export type VoiceTranscriptTurn = { role: "agent" | "customer"; text: string; at?: number };

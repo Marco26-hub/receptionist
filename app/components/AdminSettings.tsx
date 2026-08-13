@@ -126,6 +126,7 @@ export function AdminSettings({ organization, integrations, mode }: SettingsProp
         {connected ? <span><Check size={13} />Collegato</span> : <span>Da collegare</span>}
       </article>)}
     </section>
+    <a className="privacy-settings-link" href="/admin/privacy"><ShieldCheck size={20} /><span><strong>Dati e privacy</strong><small>Esporta i dati, scegli i tempi di conservazione e gestisci le richieste di cancellazione.</small></span><ExternalLink size={16} /></a>
     <section className={`calendar-settings ${calendar.connected ? "connected" : ""}`}>
       <header>
         <div><CalendarClock size={23} /><span><strong>Calendario appuntamenti</strong><small>{calendar.connected ? `Cal.com collegato${calendar.account ? ` · ${calendar.account}` : ""}` : "Agenda interna attiva · Cal.com da collegare"}</small></span></div>

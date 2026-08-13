@@ -362,3 +362,30 @@ test("enforces per-organization plans, usage and payment state", async () => {
   assert.match(migration, /billing_paused/);
   assert.match(health, /billingEnforcement/);
 });
+
+test("ships per-organization privacy export, retention and guarded erasure", async () => {
+  const [privacyData, exportRoute, eraseRoute, retentionRoute, privacyAdmin, schema, cron] = await Promise.all([
+    read("app/lib/privacy-data.ts"),
+    read("app/api/admin/privacy/export/route.ts"),
+    read("app/api/admin/privacy/erase/route.ts"),
+    read("app/api/admin/privacy/retention/route.ts"),
+    read("app/components/PrivacyAdmin.tsx"),
+    read("db/schema.ts"),
+    read("app/api/cron/optimize/route.ts"),
+  ]);
+  assert.match(privacyData, /eq\(customers\.organizationId, organizationId\)/);
+  assert.match(privacyData, /eq\(messages\.organizationId, organizationId\)/);
+  assert.match(privacyData, /eq\(voiceCalls\.organizationId, organizationId\)/);
+  assert.doesNotMatch(privacyData, /encryptedConfig/);
+  assert.doesNotMatch(privacyData, /select\(\)\.from\(integrations\)/);
+  assert.match(exportRoute, /role !== "owner"/);
+  assert.match(exportRoute, /export async function POST/);
+  assert.match(exportRoute, /requireApiAdmin\(request\)/);
+  assert.match(exportRoute, /Cache-Control/);
+  assert.match(eraseRoute, /confirmation !== "ELIMINA"/);
+  assert.match(retentionRoute, /role !== "owner"/);
+  assert.match(privacyAdmin, /Protezione multicliente attiva/);
+  assert.match(schema, /data_retention_policies/);
+  assert.match(schema, /privacy_requests/);
+  assert.match(cron, /runRetentionCleanup/);
+});

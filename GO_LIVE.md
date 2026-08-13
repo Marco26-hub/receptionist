@@ -46,6 +46,7 @@ Configura nella repository GitHub:
 3. Esegui l'intero ciclo: importazione, analisi, modifica bozza, approvazione, invio, risposta e conversione.
 4. Controlla il workflow GitHub Actions e gli audit log.
 5. Fai verificare Privacy, Termini, DPA, base giuridica dei messaggi e conservazione dei dati.
+6. Apri `/admin/privacy`, controlla i tempi di conservazione e fai un export di prova. La cancellazione dal pannello anonimizza i dati in AgendaPiena; eventuali copie presenti in Cal.com, Meta, Retell o altri fornitori collegati vanno gestite anche sul servizio esterno.
 
 ## 5.1 Calendario Cal.com
 
