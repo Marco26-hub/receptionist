@@ -159,7 +159,7 @@ test("includes data ingestion, conversion, settings and explicit AI privacy opt-
   assert.match(health, /WHATSAPP_TEMPLATE_NAME/);
   assert.match(health, /status: production && !readiness\.platform \? 503 : 200/);
   assert.match(health, /voice: commonReady && checks\.voice && checks\.voiceAi/);
-  assert.match(health, /payments: commonReady && checks\.payments/);
+  assert.match(health, /payments: commonReady && checks\.payments && checks\.billingEnforcement/);
 });
 
 test("supports Supabase Auth without exposing the provider token to the browser", async () => {
@@ -291,25 +291,74 @@ test("lets customers train voice safely from documents and guided answers", asyn
 });
 
 test("publishes clear pricing with volumes, setup and overage costs", async () => {
-  const [pricing, voice] = await Promise.all([
+  const [pricing, voice, stripe] = await Promise.all([
     read("app/prezzi/page.tsx"),
     read("app/assistente-vocale-ai/page.tsx"),
+    read("app/lib/stripe.ts"),
   ]);
   for (const text of [pricing, voice]) {
     assert.match(text, /Voce Base/);
     assert.match(text, /Voce Attività/);
     assert.match(text, /Voce Azienda/);
-    assert.match(text, /300 minuti/);
-    assert.match(text, /700 minuti/);
-    assert.match(text, /1\.500 minuti/);
-    assert.match(text, /€0,40/);
-    assert.match(text, /€0,35/);
-    assert.match(text, /€0,30/);
     assert.doesNotMatch(text, /lowPrice: "189"|highPrice: "499"|parte da €490/);
   }
+  assert.match(pricing, /stripePlans\.voce_base\.voiceMinutes/);
+  assert.match(pricing, /stripePlans\.voce_attivita\.voiceMinutes/);
+  assert.match(pricing, /stripePlans\.voce_azienda\.voiceMinutes/);
+  assert.match(stripe, /voce_base: .*voiceMinutes: 300.*voiceOverageCents: 40/);
+  assert.match(stripe, /voce_attivita: .*voiceMinutes: 700.*voiceOverageCents: 35/);
+  assert.match(stripe, /voce_azienda: .*voiceMinutes: 1500.*voiceOverageCents: 30/);
+  assert.match(stripe, /agenda_clienti: .*whatsappMessages: 1000.*whatsappOverageCents: 10/);
   assert.match(pricing, /Prezzi IVA esclusa/);
   assert.match(pricing, /Numero e traffico telefonico non inclusi/);
   assert.match(pricing, /Posso aumentare o ridurre il piano/);
   assert.match(pricing, /riduzione parte dal rinnovo successivo, senza penali/);
   assert.match(voice, /Avvio €590 una tantum/);
+});
+
+test("enforces per-organization plans, usage and payment state", async () => {
+  const [entitlements, activation, whatsapp, voiceBooking, enforcement, cron, stripe, stripeWebhook, stripeEvents, repository, billing, platform, migration, health] = await Promise.all([
+    read("app/lib/billing-entitlements.ts"),
+    read("app/api/admin/voice/activate/route.ts"),
+    read("app/lib/whatsapp.ts"),
+    read("app/api/voice/tools/booking/route.ts"),
+    read("app/lib/billing-enforcement.ts"),
+    read("app/api/cron/optimize/route.ts"),
+    read("app/lib/stripe.ts"),
+    read("app/api/webhooks/stripe/route.ts"),
+    read("app/lib/stripe-webhook-events.ts"),
+    read("app/lib/repository.ts"),
+    read("app/admin/abbonamento/page.tsx"),
+    read("app/lib/platform-admin.ts"),
+    read("drizzle/0007_subscription_period.sql"),
+    read("app/api/health/route.ts"),
+  ]);
+  assert.match(entitlements, /eq\(voiceCalls\.organizationId, organizationId\)/);
+  assert.match(entitlements, /eq\(messages\.organizationId, organizationId\)/);
+  assert.match(entitlements, /BILLING_GRACE_DAYS/);
+  assert.match(entitlements, /estimatedOverageCents/);
+  assert.match(activation, /assertOrganizationFeature\(auth\.session\.organizationId, "voice"\)/);
+  assert.match(whatsapp, /assertOrganizationFeature\(input\.organizationId, "whatsapp"\)/);
+  assert.match(voiceBooking, /!agent\.testMode.*assertOrganizationFeature\(agent\.organizationId, "voice"\)/);
+  assert.match(enforcement, /billing\.voice\.paused/);
+  assert.match(enforcement, /billing\.voice\.resumed/);
+  assert.match(enforcement, /billingPaused: true/);
+  assert.match(enforcement, /billing\.enforcement\.failed/);
+  assert.match(cron, /enforceAllBillingStates/);
+  assert.match(stripe, /stripePlanFromPriceId/);
+  assert.match(stripe, /retrieveStripeSubscription/);
+  assert.match(stripeWebhook, /withLatestSubscription/);
+  assert.match(stripeWebhook, /claimStripeWebhookEvent/);
+  assert.match(stripeEvents, /onConflictDoNothing/);
+  assert.match(stripeEvents, /status: "processed"/);
+  assert.match(repository, /planItem\?\.current_period_start/);
+  assert.match(repository, /pricePlan \|\| requestedPlan/);
+  assert.match(entitlements, /subscription\?\.statusChangedAt/);
+  assert.match(billing, /Consumi del periodo/);
+  assert.match(billing, /conguagliate secondo il contratto/);
+  assert.match(platform, /hasOverage/);
+  assert.match(migration, /current_period_start/);
+  assert.match(migration, /stripe_webhook_events/);
+  assert.match(migration, /billing_paused/);
+  assert.match(health, /billingEnforcement/);
 });

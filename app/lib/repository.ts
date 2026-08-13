@@ -15,10 +15,11 @@ import {
 import { demoMetrics, demoOpportunities, demoOrganization } from "./demo-data";
 import { estimateEmptySlotScore, rankOpportunities } from "./optimization";
 import { normalizePhone } from "./security";
-import { isStripePlanKey, stripeIsConfigured, stripePlans } from "./stripe";
+import { isStripePlanKey, stripeIsConfigured, stripePlanFromPriceId, stripePlans } from "./stripe";
 import { getRuntimeServiceStatus } from "./runtime-status";
 import { getCalcomAdminStatus } from "./calcom";
 import { getWhatsAppAdminStatus } from "./whatsapp";
+import { getBillingEntitlements } from "./billing-entitlements";
 
 const ACTIVE_OPPORTUNITY_STATUSES = ["new", "drafted", "approved"] as const;
 const DAY_MS = 86_400_000;
@@ -81,19 +82,21 @@ export async function getOnboardingData(organizationId: string) {
 }
 
 export async function getBillingData(organizationId: string) {
-  if (!isDatabaseConfigured()) return { subscription: null, stripeConfigured: false, configuredPlans: [] as string[], mode: "demo" as const };
-  const subscription = await getDb().query.subscriptions.findFirst({
-    where: eq(subscriptions.organizationId, organizationId),
-    orderBy: [desc(subscriptions.updatedAt)],
-  });
+  if (!isDatabaseConfigured()) return { subscription: null, entitlements: await getBillingEntitlements(organizationId), stripeConfigured: false, configuredPlans: [] as string[], mode: "demo" as const };
+  const [subscription, entitlements] = await Promise.all([
+    getDb().query.subscriptions.findFirst({ where: eq(subscriptions.organizationId, organizationId), orderBy: [desc(subscriptions.updatedAt)] }),
+    getBillingEntitlements(organizationId),
+  ]);
   return {
     subscription: subscription ? {
       plan: subscription.plan,
       status: subscription.status,
       monthlyAmountCents: subscription.monthlyAmountCents,
+      currentPeriodStart: subscription.currentPeriodStart,
       currentPeriodEnd: subscription.currentPeriodEnd,
       stripeCustomerId: subscription.stripeCustomerId,
     } : null,
+    entitlements,
     stripeConfigured: stripeIsConfigured(),
     configuredPlans: Object.keys(stripePlans).filter((key) => Boolean(process.env[stripePlans[key as keyof typeof stripePlans].recurringEnv]) || (key === "agenda_clienti" && process.env.STRIPE_PRICE_ID)),
     mode: "live" as const,
@@ -111,8 +114,8 @@ export async function getBillingIdentity(organizationId: string) {
 }
 
 export async function getDashboardData(organizationId: string) {
-  const [calendarStatus, whatsappStatus] = await Promise.all([getCalcomAdminStatus(organizationId), getWhatsAppAdminStatus(organizationId)]);
-  const services = getRuntimeServiceStatus({ calendar: calendarStatus, whatsapp: whatsappStatus });
+  const [calendarStatus, whatsappStatus, billing] = await Promise.all([getCalcomAdminStatus(organizationId), getWhatsAppAdminStatus(organizationId), getBillingEntitlements(organizationId)]);
+  const services = getRuntimeServiceStatus({ calendar: calendarStatus, whatsapp: whatsappStatus, billing });
   if (!isDatabaseConfigured()) return { organization: demoOrganization, metrics: demoMetrics, opportunities: demoOpportunities, services, mode: "demo" as const };
   const db = getDb();
   const organization = await db.query.organizations.findFirst({ where: eq(organizations.id, organizationId) });
@@ -498,17 +501,23 @@ export async function updateSubscriptionFromStripe(event: { id?: string; type: s
   if (!organizationId || !subscriptionId) return { updated: false, demo: false };
 
   const requestedPlan = typeof metadata.plan_key === "string" && isStripePlanKey(metadata.plan_key) ? metadata.plan_key : null;
-  const plan = requestedPlan || (existing?.plan && isStripePlanKey(existing.plan) ? existing.plan : "agenda_clienti");
-  const items = object.items && typeof object.items === "object" ? object.items as { data?: Array<{ price?: { unit_amount?: number } }> } : null;
-  const stripeAmount = items?.data?.[0]?.price?.unit_amount;
+  const items = object.items && typeof object.items === "object" ? object.items as { data?: Array<{ current_period_start?: number; current_period_end?: number; price?: { id?: string; unit_amount?: number } }> } : null;
+  const planItem = items?.data?.find((item) => stripePlanFromPriceId(item.price?.id)) || items?.data?.[0];
+  const pricePlan = stripePlanFromPriceId(planItem?.price?.id);
+  const plan = pricePlan || requestedPlan || (existing?.plan && isStripePlanKey(existing.plan) ? existing.plan : "agenda_clienti");
+  const stripeAmount = planItem?.price?.unit_amount;
   const monthlyAmountCents = typeof stripeAmount === "number" ? stripeAmount : stripePlans[plan].monthlyAmountCents;
   const status = isCheckout
     ? (object.payment_status === "paid" || object.payment_status === "no_payment_required" ? "active" : "incomplete")
     : (typeof object.status === "string" ? object.status : existing?.status || "incomplete");
-  const periodEnd = typeof object.current_period_end === "number" ? new Date(object.current_period_end * 1000) : null;
-  const values = { organizationId, stripeCustomerId: customerId || existing?.stripeCustomerId || null, stripeSubscriptionId: subscriptionId, status, plan, monthlyAmountCents, currentPeriodEnd: periodEnd || existing?.currentPeriodEnd || null, updatedAt: new Date() };
+  const periodStartSeconds = typeof planItem?.current_period_start === "number" ? planItem.current_period_start : object.current_period_start;
+  const periodEndSeconds = typeof planItem?.current_period_end === "number" ? planItem.current_period_end : object.current_period_end;
+  const periodStart = typeof periodStartSeconds === "number" ? new Date(periodStartSeconds * 1000) : null;
+  const periodEnd = typeof periodEndSeconds === "number" ? new Date(periodEndSeconds * 1000) : null;
+  const now = new Date();
+  const values = { organizationId, stripeCustomerId: customerId || existing?.stripeCustomerId || null, stripeSubscriptionId: subscriptionId, status, plan, monthlyAmountCents, currentPeriodStart: periodStart || existing?.currentPeriodStart || null, currentPeriodEnd: periodEnd || existing?.currentPeriodEnd || null, statusChangedAt: existing?.status === status ? existing.statusChangedAt : now, updatedAt: now };
   if (existing) await getDb().update(subscriptions).set(values).where(eq(subscriptions.id, existing.id));
   else await getDb().insert(subscriptions).values(values);
   await getDb().insert(auditLogs).values({ organizationId, action: `stripe.${event.type}`, entityType: "subscription", entityId: subscriptionId, metadata: { stripeEventId: event.id, status, plan } });
-  return { updated: true, demo: false };
+  return { updated: true, demo: false, organizationId, status, plan };
 }

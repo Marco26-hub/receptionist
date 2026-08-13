@@ -2,10 +2,12 @@ import { requireApiAdmin } from "../../../../lib/api-auth";
 import { setRetellPhoneActive, syncAndPublishRetellAgent } from "../../../../lib/retell";
 import { getVoiceAdminData, setVoiceAgentLive } from "../../../../lib/voice-repository";
 import { jsonError, ValidationError } from "../../../../lib/validation";
+import { assertOrganizationFeature } from "../../../../lib/billing-entitlements";
 
 export async function POST(request: Request) {
   const auth = await requireApiAdmin(request); if (auth.response) return auth.response;
   try {
+    await assertOrganizationFeature(auth.session.organizationId, "voice");
     const data = await getVoiceAdminData(auth.session.organizationId);
     if (!data.agent.retellAgentId) throw new ValidationError("Inserisci prima il codice dell’assistente Retell nelle impostazioni avanzate");
     if (!data.agent.retellPhoneNumber) throw new ValidationError("Inserisci prima il numero Retell da attivare");

@@ -4,6 +4,7 @@ import { PageIntro } from "../components/PageIntro";
 import { SiteFooter } from "../components/SiteFooter";
 import { SiteHeader } from "../components/SiteHeader";
 import { siteUrl } from "../lib/site";
+import { stripePlans } from "../lib/stripe";
 
 export const metadata: Metadata = {
   title: "Prezzi AgendaPiena AI e Segretaria Telefonica",
@@ -26,34 +27,36 @@ const customerPlans: Plan[] = [
   {
     name: "Agenda e clienti",
     audience: "Per recuperare clienti e riempire gli spazi liberi",
-    price: "€390",
+    price: `€${stripePlans.agenda_clienti.monthlyAmountCents / 100}`,
     period: "al mese",
     setup: "Avvio €790 una tantum",
     items: [
       { title: "Controllo giornaliero", detail: "legge clienti, appuntamenti e spazi liberi presenti nel sistema." },
       { title: "Elenco delle priorità", detail: "mostra chi ricontattare e spiega il motivo della proposta." },
       { title: "Messaggi WhatsApp", detail: "prepara il testo; una persona deve approvarlo prima dell’invio." },
+      { title: `${stripePlans.agenda_clienti.whatsappMessages.toLocaleString("it-IT")} invii inclusi`, detail: "conta ogni messaggio approvato e inviato dal pannello; i costi applicati da Meta restano separati." },
       { title: "Pannello da telefono", detail: "titolare e personale vedono attività, messaggi e risultati." },
       { title: "Riepilogo dei risultati", detail: "registra risposte, appuntamenti ottenuti e valore indicato." },
       { title: "Controllo mensile", detail: "rivediamo regole e messaggi sulla base dei risultati raccolti." },
     ],
-    note: "Esclusi: costi applicati da Meta, eventuale gestionale esterno e campagne pubblicitarie.",
+    note: `Invii oltre soglia: €${(stripePlans.agenda_clienti.whatsappOverageCents / 100).toFixed(2).replace(".", ",")} ciascuno, oltre agli eventuali costi Meta. Esclusi gestionale esterno e pubblicità.`,
   },
   {
     name: "Tutto in uno",
     audience: "Agenda e clienti + segretaria telefonica",
-    price: "€569",
+    price: `€${stripePlans.tutto_in_uno.monthlyAmountCents / 100}`,
     period: "al mese",
     setup: "Avvio da €1.190 una tantum",
     items: [
       { title: "Servizio Agenda e clienti", detail: "comprende tutte le funzioni del piano da €390." },
-      { title: "300 minuti di chiamate", detail: "circa 100 conversazioni da 3 minuti in un mese." },
+      { title: `${stripePlans.tutto_in_uno.voiceMinutes} minuti di chiamate`, detail: "circa 100 conversazioni da 3 minuti in un mese." },
+      { title: `${stripePlans.tutto_in_uno.whatsappMessages.toLocaleString("it-IT")} invii WhatsApp`, detail: "messaggi approvati e inviati dal pannello; gli eventuali costi Meta restano separati." },
       { title: "Risposta telefonica", detail: "comunica soltanto servizi, prezzi, orari e regole approvati." },
       { title: "Prenotazioni", detail: "controlla gli orari liberi e chiede conferma prima di salvare." },
       { title: "Passaggio a una persona", detail: "trasferisce la chiamata al numero indicato quando serve." },
       { title: "Un solo pannello", detail: "riunisce agenda, messaggi WhatsApp e registro chiamate." },
     ],
-    note: "Minuti oltre soglia: €0,40. Costi del numero e dell’operatore telefonico indicati nella proposta.",
+    note: `Oltre soglia: €${(stripePlans.tutto_in_uno.voiceOverageCents / 100).toFixed(2).replace(".", ",")}/min e €${(stripePlans.tutto_in_uno.whatsappOverageCents / 100).toFixed(2).replace(".", ",")}/invio. Costi Meta, numero e operatore indicati separatamente.`,
     featured: true,
   },
 ];
@@ -62,51 +65,51 @@ const voicePlans: Plan[] = [
   {
     name: "Voce Base",
     audience: "Per professionisti e piccole attività",
-    price: "€199",
+    price: `€${stripePlans.voce_base.monthlyAmountCents / 100}`,
     period: "al mese",
     setup: "Avvio €590 una tantum",
     items: [
-      { title: "300 minuti al mese", detail: "circa 100 conversazioni da 3 minuti; conta la durata, non il numero di chiamate." },
+      { title: `${stripePlans.voce_base.voiceMinutes} minuti al mese`, detail: "circa 100 conversazioni da 3 minuti; conta la durata, non il numero di chiamate." },
       { title: "1 segretaria e 1 numero", detail: "configuriamo un assistente e colleghiamo un solo numero telefonico." },
       { title: "Risposte approvate", detail: "usa i servizi, prezzi, orari e domande inseriti nel pannello." },
       { title: "Agenda", detail: "propone orari liberi e crea l’appuntamento solo dopo conferma." },
       { title: "Passaggio della chiamata", detail: "inoltra al personale le richieste delicate o non previste." },
       { title: "Una lingua", detail: "scegli italiano oppure inglese per la precisione migliore." },
     ],
-    note: "Minuti oltre soglia: €0,40. Numero e traffico telefonico non inclusi salvo diversa indicazione.",
+    note: `Minuti oltre soglia: €${(stripePlans.voce_base.voiceOverageCents / 100).toFixed(2).replace(".", ",")}. Numero e traffico telefonico non inclusi salvo diversa indicazione.`,
   },
   {
     name: "Voce Attività",
     audience: "Per studi, saloni, officine e gruppi di lavoro",
-    price: "€349",
+    price: `€${stripePlans.voce_attivita.monthlyAmountCents / 100}`,
     period: "al mese",
     setup: "Avvio €790 una tantum",
     items: [
-      { title: "700 minuti al mese", detail: "circa 230 conversazioni da 3 minuti; conta la durata registrata." },
+      { title: `${stripePlans.voce_attivita.voiceMinutes} minuti al mese`, detail: "circa 230 conversazioni da 3 minuti; conta la durata registrata." },
       { title: "Lingua automatica", detail: "riconosce italiano o inglese e risponde nella lingua di chi chiama." },
       { title: "Agenda protetta", detail: "ricontrolla la disponibilità per evitare appuntamenti sovrapposti." },
       { title: "Registro delle chiamate", detail: "salva trascrizione, riepilogo e risultato per il personale autorizzato." },
       { title: "Prove scaricabili", detail: "permette di verificare le risposte prima di attivare il numero." },
       { title: "Controllo mensile", detail: "rivediamo risposte e regole usando le conversazioni registrate." },
     ],
-    note: "Minuti oltre soglia: €0,35. Audio disattivato di base e attivabile solo con regole privacy adeguate.",
+    note: `Minuti oltre soglia: €${(stripePlans.voce_attivita.voiceOverageCents / 100).toFixed(2).replace(".", ",")}. Audio disattivato di base e attivabile solo con regole privacy adeguate.`,
     featured: true,
   },
   {
     name: "Voce Azienda",
     audience: "Per cliniche, reparti e volumi più alti",
-    price: "€649",
+    price: `€${stripePlans.voce_azienda.monthlyAmountCents / 100}`,
     period: "al mese",
     setup: "Avvio da €990 una tantum",
     items: [
-      { title: "1.500 minuti al mese", detail: "circa 500 conversazioni da 3 minuti; conta la durata registrata." },
+      { title: `${stripePlans.voce_azienda.voiceMinutes.toLocaleString("it-IT")} minuti al mese`, detail: "circa 500 conversazioni da 3 minuti; conta la durata registrata." },
       { title: "Percorsi per reparto", detail: "la stessa segretaria applica regole diverse in base alla richiesta." },
       { title: "1 segretaria e 1 numero", detail: "numeri o assistenti aggiuntivi richiedono una proposta separata." },
       { title: "Controllo qualità", detail: "ordina esiti e conversazioni da rivedere per correggere le risposte." },
       { title: "Collegamenti su misura", detail: "valutiamo il gestionale prima del contratto; lo sviluppo non è incluso automaticamente." },
       { title: "Assistenza prioritaria", detail: "tempi e canale di assistenza vengono scritti nella proposta." },
     ],
-    note: "Minuti oltre soglia: €0,30. Sedi, numeri, assistenti e sviluppi aggiuntivi sono quotati separatamente.",
+    note: `Minuti oltre soglia: €${(stripePlans.voce_azienda.voiceOverageCents / 100).toFixed(2).replace(".", ",")}. Sedi, numeri, assistenti e sviluppi aggiuntivi sono quotati separatamente.`,
   },
 ];
 

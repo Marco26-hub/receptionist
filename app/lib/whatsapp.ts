@@ -4,6 +4,7 @@ import { auditLogs, integrations } from "../../db/schema";
 import { decryptIntegrationConfig, encryptIntegrationConfig, integrationEncryptionReady } from "./integration-crypto";
 import { normalizePhone, safeEqual, verifyHmacHex } from "./security";
 import { ValidationError } from "./validation";
+import { assertOrganizationFeature } from "./billing-entitlements";
 
 const PROVIDER = "whatsapp";
 
@@ -220,6 +221,7 @@ export async function verifyWhatsAppWebhook(rawBody: string, signature: string |
 }
 
 export async function sendWhatsAppText(input: { organizationId: string; to: string; body: string }) {
+  await assertOrganizationFeature(input.organizationId, "whatsapp");
   const active = await activeConfig(input.organizationId);
   if (!active) {
     if (process.env.NODE_ENV === "production") throw new ValidationError("WhatsApp non è collegato: il messaggio non è stato inviato. Apri Stato del motore per completare Meta.");

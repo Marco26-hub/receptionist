@@ -76,3 +76,8 @@ La registrazione è disattivata di base. Prima di abilitarla vanno definiti info
 4. Attiva il Portale cliente Stripe e abilita aggiornamento carta, fatture, cambio piano e disdetta. Se usi una configurazione specifica, inserisci `STRIPE_PORTAL_CONFIGURATION_ID`.
 5. Dall’area `Piano e pagamenti` prova checkout, annullamento, pagamento riuscito, rinnovo, carta rifiutata, upgrade, downgrade e disdetta.
 6. Verifica nel database che cliente Stripe, abbonamento, piano, importo, stato e data di rinnovo appartengano all’azienda corretta.
+7. Controlla in `Piattaforma` i minuti voce e gli invii WhatsApp di ogni azienda. Il pannello evidenzia le soglie superate; fino all’attivazione di prezzi Stripe a consumo, conguaglia le eccedenze secondo il contratto e la fattura concordata.
+8. Lascia `BILLING_ENFORCEMENT_ENABLED=false` durante i test. Dopo aver verificato almeno un pagamento riuscito, un `past_due`, un upgrade e un downgrade, impostalo a `true` e scegli i giorni di tolleranza con `BILLING_GRACE_DAYS` (predefinito: 3).
+9. Esegui manualmente il workflow quotidiano e verifica nel risultato la voce `billing`. Alla scadenza della tolleranza una linea voce attiva deve passare in pausa; un invio WhatsApp fuori piano deve essere rifiutato con un errore visibile.
+
+I cinque codici `STRIPE_PRICE_*` devono essere distinti e associati al piano corretto. Il webhook riconosce il prezzo effettivo anche dopo una variazione nel Portale Stripe e aggiorna i limiti dell’azienda interessata. Non attivare i blocchi automatici prima di questo collaudo: `/api/health?deep=1` mantiene `readiness.payments=false` finché Stripe e il controllo abbonamenti non sono entrambi pronti.

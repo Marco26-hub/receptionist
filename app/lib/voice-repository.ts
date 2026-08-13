@@ -211,9 +211,9 @@ export async function setVoiceAgentLive(organizationId: string, actorEmail: stri
   if (!isDatabaseConfigured()) throw new ValidationError("Il collegamento Retell è necessario per attivare il numero");
   const db = getDb();
   const agent = await db.query.voiceAgents.findFirst({ where: eq(voiceAgents.organizationId, organizationId) });
-  if (!agent || agent.status !== "ready") throw new ValidationError("Segna prima l’assistente come pronto");
+  if (!agent || !["ready", "paused"].includes(agent.status)) throw new ValidationError("Segna prima l’assistente come pronto");
   if (!process.env.RETELL_API_KEY || !agent.retellAgentId || !agent.retellPhoneNumber) throw new ValidationError("Collega Retell, l’assistente e il numero prima di attivare");
-  const [saved] = await db.update(voiceAgents).set({ status: "live", testMode: false, updatedAt: new Date() }).where(eq(voiceAgents.id, agent.id)).returning();
+  const [saved] = await db.update(voiceAgents).set({ status: "live", testMode: false, billingPaused: false, updatedAt: new Date() }).where(eq(voiceAgents.id, agent.id)).returning();
   await db.insert(auditLogs).values({ organizationId, actorEmail, action: "voice.agent.activated", entityType: "voice_agent", entityId: agent.id, metadata: { version: agent.publishedVersion } });
   return { ...saved, demo: false };
 }
@@ -221,7 +221,7 @@ export async function setVoiceAgentLive(organizationId: string, actorEmail: stri
 export async function pauseVoiceAgent(organizationId: string, actorEmail: string) {
   if (!isDatabaseConfigured()) return { ok: true, status: "paused" as const, demo: true };
   const db = getDb();
-  const [agent] = await db.update(voiceAgents).set({ status: "paused", testMode: true, updatedAt: new Date() }).where(eq(voiceAgents.organizationId, organizationId)).returning();
+  const [agent] = await db.update(voiceAgents).set({ status: "paused", testMode: true, billingPaused: false, updatedAt: new Date() }).where(eq(voiceAgents.organizationId, organizationId)).returning();
   if (!agent) throw new ValidationError("Assistente non trovato");
   await db.insert(auditLogs).values({ organizationId, actorEmail, action: "voice.agent.paused", entityType: "voice_agent", entityId: agent.id });
   return { ok: true, status: agent.status, demo: false };

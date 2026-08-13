@@ -39,3 +39,4 @@ const stripeMissing = [
   ...(!stripePriceKeys.some((name) => process.env[name]) && !process.env.STRIPE_PRICE_ID ? ["almeno un codice prezzo Stripe"] : []),
 ];
 if (stripeMissing.length) console.warn("Pagamenti Stripe non ancora completi:\n" + stripeMissing.map((name) => `- ${name}`).join("\n"));
+if (!stripeMissing.length && process.env.BILLING_ENFORCEMENT_ENABLED !== "true") console.warn("Stripe è collegato, ma BILLING_ENFORCEMENT_ENABLED non è true: i servizi non verranno sospesi automaticamente in caso di piano non valido.");

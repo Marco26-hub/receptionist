@@ -2,6 +2,7 @@ import { and, eq, isNotNull, sql } from "drizzle-orm";
 import { getDb, isDatabaseConfigured } from "../../../db";
 import { integrations } from "../../../db/schema";
 import { stripeIsConfigured } from "../../lib/stripe";
+import { billingEnforcementEnabled } from "../../lib/billing-entitlements";
 
 export async function GET(request: Request) {
   const production = process.env.NODE_ENV === "production";
@@ -15,6 +16,7 @@ export async function GET(request: Request) {
     whatsapp: Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID && process.env.WHATSAPP_ORGANIZATION_ID && process.env.WHATSAPP_APP_SECRET && process.env.WHATSAPP_TEMPLATE_NAME),
     whatsappTenants: 0,
     payments: stripeIsConfigured(),
+    billingEnforcement: billingEnforcementEnabled(),
     cron: Boolean(process.env.CRON_SECRET && process.env.CRON_SECRET.length >= 24),
     authProvider: Boolean((process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) || (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD)),
     legal: Boolean(process.env.LEGAL_COMPANY_NAME && process.env.LEGAL_VAT_NUMBER && process.env.LEGAL_ADDRESS && process.env.LEGAL_EMAIL),
@@ -39,7 +41,7 @@ export async function GET(request: Request) {
     agenda: commonReady && checks.cron,
     whatsapp: commonReady && checks.cron && checks.whatsapp,
     voice: commonReady && checks.voice && checks.voiceAi,
-    payments: commonReady && checks.payments,
+    payments: commonReady && checks.payments && checks.billingEnforcement,
   };
   return Response.json({ status: production ? readiness.platform ? "ready" : "degraded" : "development", version: "2.1.0", readiness, checks: { ...checks, databaseReachable } }, { status: production && !readiness.platform ? 503 : 200, headers: { "Cache-Control": "no-store" } });
 }

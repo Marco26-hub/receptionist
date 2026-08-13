@@ -1,9 +1,9 @@
 export const stripePlans = {
-  agenda_clienti: { name: "Agenda e clienti", monthlyAmountCents: 39000, recurringEnv: "STRIPE_PRICE_AGENDA_CLIENTI", setupEnv: "STRIPE_PRICE_SETUP_AGENDA_CLIENTI" },
-  tutto_in_uno: { name: "Tutto in uno", monthlyAmountCents: 56900, recurringEnv: "STRIPE_PRICE_TUTTO_IN_UNO", setupEnv: "STRIPE_PRICE_SETUP_TUTTO_IN_UNO" },
-  voce_base: { name: "Voce Base", monthlyAmountCents: 19900, recurringEnv: "STRIPE_PRICE_VOCE_BASE", setupEnv: "STRIPE_PRICE_SETUP_VOCE_BASE" },
-  voce_attivita: { name: "Voce Attività", monthlyAmountCents: 34900, recurringEnv: "STRIPE_PRICE_VOCE_ATTIVITA", setupEnv: "STRIPE_PRICE_SETUP_VOCE_ATTIVITA" },
-  voce_azienda: { name: "Voce Azienda", monthlyAmountCents: 64900, recurringEnv: "STRIPE_PRICE_VOCE_AZIENDA", setupEnv: "STRIPE_PRICE_SETUP_VOCE_AZIENDA" },
+  agenda_clienti: { name: "Agenda e clienti", monthlyAmountCents: 39000, recurringEnv: "STRIPE_PRICE_AGENDA_CLIENTI", setupEnv: "STRIPE_PRICE_SETUP_AGENDA_CLIENTI", voiceMinutes: 0, whatsappMessages: 1000, voiceOverageCents: 0, whatsappOverageCents: 10, voiceEnabled: false, whatsappEnabled: true, maxVoiceAgents: 0, maxPhoneNumbers: 0 },
+  tutto_in_uno: { name: "Tutto in uno", monthlyAmountCents: 56900, recurringEnv: "STRIPE_PRICE_TUTTO_IN_UNO", setupEnv: "STRIPE_PRICE_SETUP_TUTTO_IN_UNO", voiceMinutes: 300, whatsappMessages: 1000, voiceOverageCents: 40, whatsappOverageCents: 10, voiceEnabled: true, whatsappEnabled: true, maxVoiceAgents: 1, maxPhoneNumbers: 1 },
+  voce_base: { name: "Voce Base", monthlyAmountCents: 19900, recurringEnv: "STRIPE_PRICE_VOCE_BASE", setupEnv: "STRIPE_PRICE_SETUP_VOCE_BASE", voiceMinutes: 300, whatsappMessages: 0, voiceOverageCents: 40, whatsappOverageCents: 0, voiceEnabled: true, whatsappEnabled: false, maxVoiceAgents: 1, maxPhoneNumbers: 1 },
+  voce_attivita: { name: "Voce Attività", monthlyAmountCents: 34900, recurringEnv: "STRIPE_PRICE_VOCE_ATTIVITA", setupEnv: "STRIPE_PRICE_SETUP_VOCE_ATTIVITA", voiceMinutes: 700, whatsappMessages: 0, voiceOverageCents: 35, whatsappOverageCents: 0, voiceEnabled: true, whatsappEnabled: false, maxVoiceAgents: 1, maxPhoneNumbers: 1 },
+  voce_azienda: { name: "Voce Azienda", monthlyAmountCents: 64900, recurringEnv: "STRIPE_PRICE_VOCE_AZIENDA", setupEnv: "STRIPE_PRICE_SETUP_VOCE_AZIENDA", voiceMinutes: 1500, whatsappMessages: 0, voiceOverageCents: 30, whatsappOverageCents: 0, voiceEnabled: true, whatsappEnabled: false, maxVoiceAgents: 1, maxPhoneNumbers: 1 },
 } as const;
 
 export type StripePlanKey = keyof typeof stripePlans;
@@ -26,12 +26,35 @@ async function stripeRequest<T>(path: string, body: URLSearchParams) {
   return result;
 }
 
+async function stripeGet<T>(path: string) {
+  const response = await fetch(`https://api.stripe.com/v1/${path}`, {
+    headers: { Authorization: `Bearer ${secretKey()}` },
+    cache: "no-store",
+  });
+  const result = await response.json() as T & { error?: { message?: string } };
+  if (!response.ok) throw new Error(result.error?.message || "Stripe non ha restituito l’abbonamento");
+  return result;
+}
+
+export async function retrieveStripeSubscription(subscriptionId: string) {
+  return stripeGet<Record<string, unknown>>(`subscriptions/${encodeURIComponent(subscriptionId)}`);
+}
+
 export function isStripePlanKey(value: unknown): value is StripePlanKey {
   return typeof value === "string" && value in stripePlans;
 }
 
 export function configuredStripePlans() {
-  return Object.entries(stripePlans).filter(([, plan]) => Boolean(process.env[plan.recurringEnv])).map(([key]) => key as StripePlanKey);
+  return Object.entries(stripePlans).filter(([key, plan]) => Boolean(process.env[plan.recurringEnv]) || (key === "agenda_clienti" && process.env.STRIPE_PRICE_ID)).map(([key]) => key as StripePlanKey);
+}
+
+export function stripePlanFromPriceId(priceId: unknown): StripePlanKey | null {
+  if (typeof priceId !== "string" || !priceId) return null;
+  for (const [key, plan] of Object.entries(stripePlans)) {
+    const configured = process.env[plan.recurringEnv] || (key === "agenda_clienti" ? process.env.STRIPE_PRICE_ID : undefined);
+    if (configured === priceId) return key as StripePlanKey;
+  }
+  return null;
 }
 
 export function stripeIsConfigured() {

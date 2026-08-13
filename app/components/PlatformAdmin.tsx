@@ -5,7 +5,8 @@ import { useState } from "react";
 
 type PlatformOrganization = {
   id: string; name: string; slug: string; city: string | null; createdAt: string; members: number; customers: number;
-  subscriptionStatus: string | null; voiceStatus: string | null; calendarConnected: boolean; whatsappConnected: boolean;
+  subscriptionStatus: string | null; subscriptionPlan: string | null; planName: string | null; voiceStatus: string | null; calendarConnected: boolean; whatsappConnected: boolean;
+  voiceUsed: number; voiceIncluded: number; whatsappUsed: number; whatsappIncluded: number; hasOverage: boolean;
 };
 
 export function PlatformAdmin({ initialOrganizations, provisioningReady }: { initialOrganizations: PlatformOrganization[]; provisioningReady: boolean }) {
@@ -18,7 +19,7 @@ export function PlatformAdmin({ initialOrganizations, provisioningReady }: { ini
     const response = await fetch("/api/platform/organizations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(Object.fromEntries(new FormData(event.currentTarget))) });
     const result = await response.json(); setBusy(false);
     if (!response.ok) { setNotice(result.error || "Creazione non riuscita"); return; }
-    const organization: PlatformOrganization = { ...result.organization, createdAt: result.organization.createdAt, members: 1, customers: 0, subscriptionStatus: null, voiceStatus: null, calendarConnected: false, whatsappConnected: false };
+    const organization: PlatformOrganization = { ...result.organization, createdAt: result.organization.createdAt, members: 1, customers: 0, subscriptionStatus: null, subscriptionPlan: null, planName: null, voiceStatus: null, calendarConnected: false, whatsappConnected: false, voiceUsed: 0, voiceIncluded: 0, whatsappUsed: 0, whatsappIncluded: 0, hasOverage: false };
     setOrganizations((current) => [organization, ...current]);
     event.currentTarget.reset(); setOpen(false);
     setNotice(result.invitation === "sent" ? "Azienda creata. Il proprietario ha ricevuto l’invito." : "Azienda creata. Il proprietario aveva già un account e ora può selezionarla.");
@@ -33,14 +34,14 @@ export function PlatformAdmin({ initialOrganizations, provisioningReady }: { ini
       <label>Nome proprietario<input name="ownerName" required maxLength={120} /></label><label>Email proprietario<input name="ownerEmail" type="email" required /></label>
       <button disabled={busy}>{busy ? <LoaderCircle className="spin" size={17} /> : <Building2 size={17} />}{busy ? "Creazione..." : "Crea e invita"}</button>
     </form>}
-    <section className="platform-summary"><div><strong>{organizations.length}</strong><span>Aziende</span></div><div><strong>{organizations.reduce((sum, item) => sum + item.customers, 0)}</strong><span>Clienti gestiti</span></div><div><strong>{organizations.filter((item) => item.subscriptionStatus === "active" || item.subscriptionStatus === "trialing").length}</strong><span>Piani attivi</span></div></section>
+    <section className="platform-summary"><div><strong>{organizations.length}</strong><span>Aziende</span></div><div><strong>{organizations.reduce((sum, item) => sum + item.customers, 0)}</strong><span>Clienti gestiti</span></div><div><strong>{organizations.filter((item) => item.subscriptionStatus === "active" || item.subscriptionStatus === "trialing").length}</strong><span>Piani attivi</span></div><div className={organizations.some((item) => item.hasOverage) ? "attention" : ""}><strong>{organizations.filter((item) => item.hasOverage).length}</strong><span>Eccedenze da controllare</span></div></section>
     <section className="platform-organizations">
       <div className="platform-row platform-head"><span>Azienda</span><span>Utilizzo</span><span>Servizi collegati</span><span>Piano</span></div>
       {organizations.map((organization) => <article className="platform-row" key={organization.id}>
         <div><strong>{organization.name}</strong><small>{organization.city || "Città non indicata"} · dal {new Date(organization.createdAt).toLocaleDateString("it-IT")}</small></div>
-        <div className="platform-usage"><span><UsersRound size={14} />{organization.members} accessi</span><span><Building2 size={14} />{organization.customers} clienti</span></div>
+        <div className="platform-usage"><span><UsersRound size={14} />{organization.members} accessi</span><span><Building2 size={14} />{organization.customers} clienti</span>{organization.voiceIncluded > 0 && <span className={organization.voiceUsed > organization.voiceIncluded ? "over" : ""}><PhoneCall size={14} />{organization.voiceUsed.toLocaleString("it-IT")}/{organization.voiceIncluded.toLocaleString("it-IT")} min</span>}{organization.whatsappIncluded > 0 && <span className={organization.whatsappUsed > organization.whatsappIncluded ? "over" : ""}><MessageCircle size={14} />{organization.whatsappUsed.toLocaleString("it-IT")}/{organization.whatsappIncluded.toLocaleString("it-IT")} invii</span>}</div>
         <div className="platform-services"><span className={organization.voiceStatus === "live" ? "ready" : ""}><PhoneCall size={14} />Voce</span><span className={organization.calendarConnected ? "ready" : ""}><CalendarClock size={14} />Agenda</span><span className={organization.whatsappConnected ? "ready" : ""}><MessageCircle size={14} />WhatsApp</span></div>
-        <span className={`platform-plan ${organization.subscriptionStatus === "active" || organization.subscriptionStatus === "trialing" ? "ready" : ""}`}>{organization.subscriptionStatus === "active" ? <CheckCircle2 size={14} /> : null}{subscriptionLabel(organization.subscriptionStatus)}</span>
+        <span className={`platform-plan ${organization.subscriptionStatus === "active" || organization.subscriptionStatus === "trialing" ? "ready" : ""}`}>{organization.subscriptionStatus === "active" ? <CheckCircle2 size={14} /> : null}<span>{organization.planName || "Nessun piano"}<small>{subscriptionLabel(organization.subscriptionStatus)}</small></span></span>
       </article>)}
     </section>
   </main>;

@@ -101,7 +101,7 @@ export const messages = pgTable("messages", {
   sentAt: timestamp("sent_at", { withTimezone: true }),
   metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-}, (table) => [index("messages_org_status_idx").on(table.organizationId, table.status)]);
+}, (table) => [index("messages_org_status_idx").on(table.organizationId, table.status), index("messages_org_sent_idx").on(table.organizationId, table.sentAt)]);
 
 export const leads = pgTable("leads", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -134,10 +134,24 @@ export const subscriptions = pgTable("subscriptions", {
   status: text("status").default("trialing").notNull(),
   plan: text("plan").default("atelier").notNull(),
   monthlyAmountCents: integer("monthly_amount_cents").default(39000).notNull(),
+  currentPeriodStart: timestamp("current_period_start", { withTimezone: true }),
   currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }),
+  statusChangedAt: timestamp("status_changed_at", { withTimezone: true }).defaultNow().notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-});
+}, (table) => [index("subscriptions_org_updated_idx").on(table.organizationId, table.updatedAt), uniqueIndex("subscriptions_stripe_id_idx").on(table.stripeSubscriptionId)]);
+
+export const stripeWebhookEvents = pgTable("stripe_webhook_events", {
+  id: text("id").primaryKey(),
+  eventType: text("event_type").notNull(),
+  status: text("status").default("processing").notNull(),
+  attempts: integer("attempts").default(1).notNull(),
+  lastError: text("last_error"),
+  stripeCreatedAt: timestamp("stripe_created_at", { withTimezone: true }),
+  processedAt: timestamp("processed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [index("stripe_webhook_status_updated_idx").on(table.status, table.updatedAt)]);
 
 export const auditLogs = pgTable("audit_logs", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -172,6 +186,7 @@ export const voiceAgents = pgTable("voice_agents", {
   bookingEnabled: boolean("booking_enabled").default(true).notNull(),
   recordingEnabled: boolean("recording_enabled").default(false).notNull(),
   testMode: boolean("test_mode").default(true).notNull(),
+  billingPaused: boolean("billing_paused").default(false).notNull(),
   retellAgentId: text("retell_agent_id"),
   retellPhoneNumber: text("retell_phone_number"),
   publishedVersion: integer("published_version").default(0).notNull(),

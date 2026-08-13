@@ -3,7 +3,7 @@
 import { ArrowUpRight, CreditCard, LoaderCircle, Settings2 } from "lucide-react";
 import { useState } from "react";
 
-type Plan = { key: string; name: string; price: string; configured: boolean };
+type Plan = { key: string; name: string; price: string; configured: boolean; details: string };
 
 export function BillingActions({ plans, hasCustomer, canManage, stripeConfigured }: { plans: Plan[]; hasCustomer: boolean; canManage: boolean; stripeConfigured: boolean }) {
   const [loading, setLoading] = useState<string | null>(null);
@@ -27,7 +27,7 @@ export function BillingActions({ plans, hasCustomer, canManage, stripeConfigured
     {!stripeConfigured && <div className="billing-warning"><CreditCard size={18} /><p><strong>Collegamento Stripe da completare.</strong> Inserisci le chiavi API e almeno un codice prezzo nelle variabili di produzione.</p></div>}
     <div className="billing-plan-list">
       {plans.map((plan) => <article key={plan.key}>
-        <div><small>Piano</small><strong>{plan.name}</strong><span>{plan.price} + eventuale avvio</span></div>
+        <div><small>Piano</small><strong>{plan.name}</strong><span>{plan.price} + eventuale avvio · {plan.details}</span></div>
         <button disabled={!canManage || hasCustomer || !plan.configured || Boolean(loading)} onClick={() => redirect("/api/checkout", { planKey: plan.key }, plan.key)} type="button">
           {loading === plan.key ? <LoaderCircle className="spin" size={17} /> : <ArrowUpRight size={17} />}
           {hasCustomer ? "Gestisci dal portale" : plan.configured ? "Vai al pagamento" : "Da collegare"}

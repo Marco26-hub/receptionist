@@ -1,5 +1,6 @@
 import { verifyRetellSignature } from "../../../../../lib/retell";
 import { findVoiceAgentByRetellId, rescheduleVoiceAppointment } from "../../../../../lib/voice-repository";
+import { assertOrganizationFeature } from "../../../../../lib/billing-entitlements";
 
 type ToolPayload = { call?: { agent_id?: string }; args?: Record<string, unknown> };
 
@@ -10,6 +11,7 @@ export async function POST(request: Request) {
     const payload = JSON.parse(rawBody) as ToolPayload;
     const agent = payload.call?.agent_id ? await findVoiceAgentByRetellId(payload.call.agent_id) : null;
     if (!agent) return Response.json({ error: "Assistente non riconosciuto" }, { status: 404 });
+    if (!agent.testMode) await assertOrganizationFeature(agent.organizationId, "voice");
     if (payload.args?.confirmed !== true) return Response.json({ changed: false, message: "Ripeti appuntamento e nuovo orario, poi chiedi una conferma esplicita." });
     const startsAt = new Date(String(payload.args?.starts_at || ""));
     const result = await rescheduleVoiceAppointment({

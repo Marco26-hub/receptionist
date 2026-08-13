@@ -1,4 +1,7 @@
 import { updateSubscriptionFromStripe } from "../../../lib/repository";
+import { enforceBillingAfterSubscriptionChange } from "../../../lib/billing-enforcement";
+import { retrieveStripeSubscription } from "../../../lib/stripe";
+import { claimStripeWebhookEvent, completeStripeWebhookEvent, failStripeWebhookEvent, type StripeWebhookEvent } from "../../../lib/stripe-webhook-events";
 
 function hex(bytes: ArrayBuffer) { return Array.from(new Uint8Array(bytes)).map((byte) => byte.toString(16).padStart(2, "0")).join(""); }
 function sameSignature(left: string, right: string) {
@@ -34,8 +37,32 @@ export async function POST(request: Request) {
   const signature = request.headers.get("stripe-signature");
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
   if (!secret || !signature || !(await validSignature(payload, signature, secret))) return Response.json({ ok: false, error: "Firma Stripe non valida" }, { status: 400 });
-  let event: { id?: string; type: string; data: { object: Record<string, unknown> } };
+  let event: StripeWebhookEvent;
   try { event = JSON.parse(payload); } catch { return Response.json({ ok: false, error: "Evento non valido" }, { status: 400 }); }
-  if (acceptedEvents.has(event.type)) await updateSubscriptionFromStripe(event);
+  if (!event.id || !event.type || !event.data?.object) return Response.json({ ok: false, error: "Evento incompleto" }, { status: 400 });
+  if (acceptedEvents.has(event.type)) {
+    if (!(await claimStripeWebhookEvent(event))) return Response.json({ received: true, duplicate: true });
+    try {
+      const latestEvent = await withLatestSubscription(event);
+      const result = await updateSubscriptionFromStripe(latestEvent);
+      if (result.updated && result.organizationId) await enforceBillingAfterSubscriptionChange(result.organizationId);
+      await completeStripeWebhookEvent(event.id);
+    } catch (error) {
+      await failStripeWebhookEvent(event.id, error);
+      return Response.json({ received: false, error: "Elaborazione Stripe non riuscita; il tentativo verrà ripetuto" }, { status: 500 });
+    }
+  }
   return Response.json({ received: true });
+}
+
+async function withLatestSubscription(event: StripeWebhookEvent): Promise<StripeWebhookEvent> {
+  const object = event.data.object;
+  const checkout = event.type.startsWith("checkout.session.");
+  const subscriptionId = checkout ? typeof object.subscription === "string" ? object.subscription : null : typeof object.id === "string" ? object.id : null;
+  if (!subscriptionId) return event;
+  const latest = await retrieveStripeSubscription(subscriptionId);
+  return checkout ? {
+    ...event,
+    data: { object: { ...latest, subscription: subscriptionId, client_reference_id: object.client_reference_id, payment_status: object.payment_status, customer: latest.customer || object.customer } },
+  } : { ...event, data: { object: latest } };
 }
