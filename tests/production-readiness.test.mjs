@@ -67,6 +67,23 @@ test("supports Supabase Auth without exposing the provider token to the browser"
   assert.doesNotMatch(login, /access_token/);
 });
 
+test("ships guided onboarding and owner-controlled team invitations", async () => {
+  const [teamRoute, provider, onboarding, team, billing] = await Promise.all([
+    read("app/api/admin/team/route.ts"),
+    read("app/lib/identity-provider.ts"),
+    read("app/components/OnboardingAdmin.tsx"),
+    read("app/components/TeamAdmin.tsx"),
+    read("app/admin/abbonamento/page.tsx"),
+  ]);
+  assert.match(teamRoute, /auth\.session\.role !== "owner"/);
+  assert.match(teamRoute, /inviteSupabaseUser/);
+  assert.match(provider, /SUPABASE_SERVICE_ROLE_KEY/);
+  assert.doesNotMatch(provider, /NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY/);
+  assert.match(onboarding, /Ogni controllo usa lo stato reale/);
+  assert.match(team, /Non condividere la password del proprietario/);
+  assert.match(billing, /getBillingData/);
+});
+
 test("ships an executable deployment gate and go-live runbook", async () => {
   const [packageJson, checkEnv, runbook] = await Promise.all([read("package.json"), read("scripts/check-env.mjs"), read("GO_LIVE.md")]);
   assert.match(packageJson, /check:env/);

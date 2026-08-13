@@ -14,6 +14,7 @@ import {
   RefreshCw,
   Search,
   Settings,
+  ListChecks,
   Sparkles,
   UsersRound,
   X,
@@ -193,6 +194,10 @@ export function AdminDashboard({ initialData, userEmail }: DashboardProps) {
           <a href="/admin/voce">
             <PhoneCall size={18} />
             Voce AI
+          </a>
+          <a href="/admin/configurazione">
+            <ListChecks size={18} />
+            Configura
           </a>
           <a href="/admin/impostazioni">
             <Settings size={18} />

@@ -10,6 +10,7 @@ import {
   opportunities,
   organizations,
   subscriptions,
+  voiceAgents,
 } from "../../db/schema";
 import { demoMetrics, demoOpportunities, demoOrganization } from "./demo-data";
 import { estimateEmptySlotScore, rankOpportunities } from "./optimization";
@@ -27,6 +28,70 @@ export async function resolveAdminIdentity(email: string) {
     orderBy: [desc(members.createdAt)],
   });
   return row ? { organizationId: row.organizationId, memberId: row.id, role: row.role } : null;
+}
+
+export async function getTeamMembers(organizationId: string) {
+  if (!isDatabaseConfigured()) return [];
+  return getDb().select({ id: members.id, email: members.email, name: members.name, role: members.role, active: members.active, createdAt: members.createdAt }).from(members).where(eq(members.organizationId, organizationId)).orderBy(desc(members.createdAt));
+}
+
+export async function addTeamMember(input: { organizationId: string; email: string; name: string; role: "owner" | "manager" | "staff"; actorEmail: string }) {
+  if (!isDatabaseConfigured()) throw new Error("Database non configurato");
+  const [saved] = await getDb().insert(members).values({ organizationId: input.organizationId, email: input.email, name: input.name, role: input.role }).onConflictDoUpdate({ target: [members.organizationId, members.email], set: { name: input.name, role: input.role, active: true } }).returning();
+  await getDb().insert(auditLogs).values({ organizationId: input.organizationId, actorEmail: input.actorEmail, action: "team.member.invited", entityType: "member", entityId: saved.id, metadata: { email: input.email, role: input.role } });
+  return saved;
+}
+
+export async function updateTeamMember(input: { organizationId: string; memberId: string; active: boolean; role?: "owner" | "manager" | "staff"; actorEmail: string }) {
+  if (!isDatabaseConfigured()) throw new Error("Database non configurato");
+  const existing = await getDb().query.members.findFirst({ where: and(eq(members.id, input.memberId), eq(members.organizationId, input.organizationId)) });
+  if (!existing) throw new Error("Utente non trovato");
+  if (existing.email === input.actorEmail && !input.active) throw new Error("Non puoi disattivare il tuo account");
+  const [saved] = await getDb().update(members).set({ active: input.active, role: input.role || existing.role }).where(and(eq(members.id, input.memberId), eq(members.organizationId, input.organizationId))).returning();
+  await getDb().insert(auditLogs).values({ organizationId: input.organizationId, actorEmail: input.actorEmail, action: "team.member.updated", entityType: "member", entityId: saved.id, metadata: { active: saved.active, role: saved.role } });
+  return saved;
+}
+
+export async function getOnboardingData(organizationId: string) {
+  if (!isDatabaseConfigured()) return { completed: 0, total: 6, steps: [], mode: "demo" as const };
+  const db = getDb();
+  const [organization, customerCount, appointmentCount, memberCount, voiceAgent, subscription] = await Promise.all([
+    db.query.organizations.findFirst({ where: eq(organizations.id, organizationId) }),
+    db.select({ count: sql<number>`count(*)` }).from(customers).where(eq(customers.organizationId, organizationId)),
+    db.select({ count: sql<number>`count(*)` }).from(appointments).where(eq(appointments.organizationId, organizationId)),
+    db.select({ count: sql<number>`count(*)` }).from(members).where(and(eq(members.organizationId, organizationId), eq(members.active, true))),
+    db.query.voiceAgents.findFirst({ where: eq(voiceAgents.organizationId, organizationId) }),
+    db.query.subscriptions.findFirst({ where: eq(subscriptions.organizationId, organizationId), orderBy: [desc(subscriptions.updatedAt)] }),
+  ]);
+  if (!organization) throw new Error("Attività non trovata");
+  const settings = organization.settings as { openingHour?: number; closingHour?: number; workingDays?: number[] };
+  const steps = [
+    { id: "business", title: "Dati e orari dell’attività", detail: "Nome, città, giorni, orari e valore medio.", href: "/admin/impostazioni", done: Boolean(organization.name && settings.openingHour !== undefined && settings.closingHour !== undefined) },
+    { id: "team", title: "Persone autorizzate", detail: "Invita responsabili e collaboratori con il ruolo corretto.", href: "/admin/team", done: Number(memberCount[0]?.count || 0) > 0 },
+    { id: "data", title: "Clienti e appuntamenti", detail: "Importa i dati necessari al motore di recupero.", href: "/admin/clienti", done: Number(customerCount[0]?.count || 0) > 0 && Number(appointmentCount[0]?.count || 0) > 0 },
+    { id: "voice", title: "Assistente e conoscenze", detail: "Servizi, documenti, regole, voce e prove.", href: "/admin/voce", done: Boolean(voiceAgent && ["ready", "live"].includes(voiceAgent.status)) },
+    { id: "channels", title: "Canali collegati", detail: "Collega almeno Voice oppure WhatsApp.", href: "/admin/impostazioni", done: Boolean((process.env.RETELL_API_KEY && voiceAgent?.retellAgentId) || (process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID)) },
+    { id: "billing", title: "Piano e pagamenti", detail: "Attiva il piano e controlla la fatturazione.", href: "/admin/abbonamento", done: Boolean(subscription && ["active", "trialing"].includes(subscription.status)) },
+  ];
+  return { organization: { name: organization.name }, completed: steps.filter((step) => step.done).length, total: steps.length, steps, mode: "live" as const };
+}
+
+export async function getBillingData(organizationId: string) {
+  if (!isDatabaseConfigured()) return { subscription: null, stripeConfigured: false, mode: "demo" as const };
+  const subscription = await getDb().query.subscriptions.findFirst({
+    where: eq(subscriptions.organizationId, organizationId),
+    orderBy: [desc(subscriptions.updatedAt)],
+  });
+  return {
+    subscription: subscription ? {
+      plan: subscription.plan,
+      status: subscription.status,
+      monthlyAmountCents: subscription.monthlyAmountCents,
+      currentPeriodEnd: subscription.currentPeriodEnd,
+    } : null,
+    stripeConfigured: Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_PRICE_ID && process.env.STRIPE_WEBHOOK_SECRET),
+    mode: "live" as const,
+  };
 }
 
 export async function getDashboardData(organizationId: string) {
