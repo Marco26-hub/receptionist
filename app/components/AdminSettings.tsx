@@ -1,7 +1,22 @@
 "use client";
 
 import { useState } from "react";
-import { CalendarClock, Check, Database, ExternalLink, KeyRound, MessageCircle, Save, Sparkles, Unplug, WalletCards } from "lucide-react";
+import { CalendarClock, Check, Copy, Database, ExternalLink, KeyRound, MessageCircle, Save, ShieldCheck, Sparkles, Unplug, WalletCards } from "lucide-react";
+
+type WhatsAppStatus = {
+  connected: boolean;
+  managedByOrganization: boolean;
+  encryptionReady: boolean;
+  phoneNumber: string | null;
+  phoneNumberId: string | null;
+  verifiedName: string | null;
+  templateName: string | null;
+  callbackUrl: string;
+  lastVerifiedAt: string | null;
+  lastSuccessAt: string | null;
+  lastError: string | null;
+  lastErrorCode: number | null;
+};
 
 type SettingsProps = {
   organization: {
@@ -14,7 +29,7 @@ type SettingsProps = {
   integrations: {
     database: boolean;
     ai: boolean;
-    whatsapp: boolean;
+    whatsapp: WhatsAppStatus;
     stripe: boolean;
     calendar: { connected: boolean; encryptionReady: boolean; eventTypeId: number | null; account: string | null; lastVerifiedAt: string | null; lastSuccessAt: string | null; lastError: string | null };
   };
@@ -29,6 +44,9 @@ export function AdminSettings({ organization, integrations, mode }: SettingsProp
   const [calendar, setCalendar] = useState(integrations.calendar);
   const [calendarBusy, setCalendarBusy] = useState(false);
   const [calendarNotice, setCalendarNotice] = useState("");
+  const [whatsapp, setWhatsApp] = useState(integrations.whatsapp);
+  const [whatsappBusy, setWhatsAppBusy] = useState(false);
+  const [whatsappNotice, setWhatsAppNotice] = useState("");
   const settings = organization.settings as { openingHour?: number; closingHour?: number; slotMinutes?: number; workingDays?: number[] };
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
@@ -63,20 +81,49 @@ export function AdminSettings({ organization, integrations, mode }: SettingsProp
     setCalendarNotice("Cal.com scollegato. Il pannello segnalerà che è attiva soltanto l’agenda interna.");
   }
 
+  async function connectWhatsApp(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault(); setWhatsAppBusy(true); setWhatsAppNotice("");
+    const form = new FormData(event.currentTarget);
+    const response = await fetch("/api/admin/integrations/whatsapp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(Object.fromEntries(form)),
+    });
+    const result = await response.json(); setWhatsAppBusy(false);
+    if (!response.ok) return setWhatsAppNotice(result.error || "Collegamento WhatsApp non riuscito");
+    setWhatsApp(result.status); setWhatsAppNotice("Numero WhatsApp verificato e collegato a questa azienda.");
+    event.currentTarget.reset();
+  }
+
+  async function disconnectWhatsApp() {
+    if (!window.confirm("Scollegare WhatsApp? I messaggi già registrati restano visibili, ma i nuovi invii saranno bloccati.")) return;
+    setWhatsAppBusy(true); setWhatsAppNotice("");
+    const response = await fetch("/api/admin/integrations/whatsapp", { method: "DELETE" });
+    const result = await response.json(); setWhatsAppBusy(false);
+    if (!response.ok) return setWhatsAppNotice(result.error || "Operazione non riuscita");
+    setWhatsApp((current) => ({ ...current, connected: false, managedByOrganization: false, phoneNumber: null, phoneNumberId: null, verifiedName: null, templateName: null, lastVerifiedAt: null, lastSuccessAt: null, lastError: null, lastErrorCode: null }));
+    setWhatsAppNotice("WhatsApp scollegato. Nessun messaggio reale potrà partire.");
+  }
+
+  async function copyCallbackUrl() {
+    await navigator.clipboard.writeText(whatsapp.callbackUrl);
+    setWhatsAppNotice("URL webhook copiato.");
+  }
+
   const integrationRows = [
-    { key: "database", label: "Database", icon: Database },
-    { key: "ai", label: "OpenAI", icon: Sparkles },
-    { key: "whatsapp", label: "WhatsApp", icon: MessageCircle },
-    { key: "stripe", label: "Pagamenti", icon: WalletCards },
+    { key: "database", label: "Database", icon: Database, connected: integrations.database },
+    { key: "ai", label: "Intelligenza AI", icon: Sparkles, connected: integrations.ai },
+    { key: "whatsapp", label: "WhatsApp", icon: MessageCircle, connected: whatsapp.connected && !whatsapp.lastError },
+    { key: "stripe", label: "Pagamenti", icon: WalletCards, connected: integrations.stripe },
   ] as const;
 
   return <main className="settings-page">
     <a href="/admin">Torna alle opportunità</a>
     <header><span>Controllo go-live</span><h1>Impostazioni operative</h1><p>Definisci come lavora il motore e verifica i collegamenti esterni.</p></header>
     <section className="integration-strip">
-      {integrationRows.map(({ key, label, icon: Icon }) => <article key={key} className={integrations[key] ? "connected" : ""}>
+      {integrationRows.map(({ key, label, icon: Icon, connected }) => <article key={key} className={connected ? "connected" : ""}>
         <Icon size={19} /><strong>{label}</strong>
-        {integrations[key] ? <span><Check size={13} />Collegato</span> : <span>Da collegare</span>}
+        {connected ? <span><Check size={13} />Collegato</span> : <span>Da collegare</span>}
       </article>)}
     </section>
     <section className={`calendar-settings ${calendar.connected ? "connected" : ""}`}>
@@ -97,6 +144,33 @@ export function AdminSettings({ organization, integrations, mode }: SettingsProp
         <a href="https://app.cal.com/settings/developer/api-keys" target="_blank" rel="noreferrer">Apri Cal.com <ExternalLink size={14} /></a>
       </form>}
       {calendarNotice && <p className="calendar-notice">{calendarNotice}</p>}
+    </section>
+    <section className={`calendar-settings whatsapp-settings ${whatsapp.connected && !whatsapp.lastError ? "connected" : ""}`}>
+      <header>
+        <div><MessageCircle size={23} /><span><strong>WhatsApp Business</strong><small>{whatsapp.connected ? `${whatsapp.verifiedName || "Account Meta verificato"}${whatsapp.phoneNumber ? ` · ${whatsapp.phoneNumber}` : ""}` : "Messaggi reali disattivati · Meta da collegare"}</small></span></div>
+        <b>{whatsapp.connected && !whatsapp.lastError ? "Operativo" : whatsapp.lastError ? "Richiede controllo" : "Non collegato"}</b>
+      </header>
+      {whatsapp.lastError && <p className="calendar-error"><strong>Ultimo errore visibile{whatsapp.lastErrorCode ? ` (${whatsapp.lastErrorCode})` : ""}:</strong> {whatsapp.lastError}</p>}
+      {!whatsapp.encryptionReady && <p className="calendar-error"><strong>Blocco di sicurezza:</strong> manca la chiave che cifra le credenziali. Aggiungi <code>INTEGRATION_ENCRYPTION_KEY</code> su Render prima di collegare Meta.</p>}
+      <div className="webhook-address">
+        <ShieldCheck size={18} /><span><small>URL webhook da inserire su Meta</small><strong>{whatsapp.callbackUrl}</strong></span>
+        <button type="button" onClick={copyCallbackUrl} title="Copia URL webhook"><Copy size={16} /><span>Copia</span></button>
+      </div>
+      {whatsapp.connected ? <div className="calendar-connected-actions">
+        <p>Numero ID: <strong>{whatsapp.phoneNumberId}</strong>. Template di apertura: <strong>{whatsapp.templateName}</strong>. Invii, consegne, risposte e richieste di non essere più contattati vengono registrati per questa azienda.</p>
+        {whatsapp.managedByOrganization ? <button type="button" onClick={disconnectWhatsApp} disabled={whatsappBusy}><Unplug size={16} />Scollega</button> : <p className="environment-managed">Configurazione generale gestita su Render. Collegane una dedicata per rendere questa azienda indipendente.</p>}
+      </div> : <form onSubmit={connectWhatsApp} className="whatsapp-connect-form">
+        <div className="whatsapp-form-intro"><KeyRound size={18} /><p>Inserisci i dati della tua app Meta. Verifichiamo il numero prima di salvare e cifriamo token e segreti nel database.</p></div>
+        <label>Token permanente Meta<input type="password" name="accessToken" autoComplete="off" placeholder="EAA..." required disabled={!whatsapp.encryptionReady} /></label>
+        <label>ID numero WhatsApp<input name="phoneNumberId" inputMode="numeric" placeholder="123456789..." required disabled={!whatsapp.encryptionReady} /></label>
+        <label>App Secret Meta<input type="password" name="appSecret" autoComplete="off" required disabled={!whatsapp.encryptionReady} /></label>
+        <label>Token di verifica<input type="password" name="verifyToken" autoComplete="off" minLength={16} required disabled={!whatsapp.encryptionReady} /></label>
+        <label>Nome template approvato<input name="templateName" defaultValue="agendapiena_recupero_cliente" pattern="[a-z0-9_]+" required disabled={!whatsapp.encryptionReady} /></label>
+        <label>Lingua template<select name="templateLanguage" defaultValue="it" disabled={!whatsapp.encryptionReady}><option value="it">Italiano</option><option value="en">English</option><option value="en_US">English (USA)</option></select></label>
+        <button disabled={whatsappBusy || !whatsapp.encryptionReady}><MessageCircle size={17} />{whatsappBusy ? "Verifica in corso..." : "Verifica e collega"}</button>
+        <a href="https://business.facebook.com/wa/manage/home/" target="_blank" rel="noreferrer">Apri Meta Business <ExternalLink size={14} /></a>
+      </form>}
+      {whatsappNotice && <p className="calendar-notice">{whatsappNotice}</p>}
     </section>
     <form className="settings-form" onSubmit={submit}>
       <div>

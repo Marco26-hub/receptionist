@@ -19,8 +19,10 @@ export async function POST(request: Request) {
         lastVisitAt,
         lifetimeValueCents: nonNegativeInt(row.lifetimeValueCents),
         preferredServices: Array.isArray(row.preferredServices) ? row.preferredServices.filter((item): item is string => typeof item === "string").slice(0, 20) : typeof row.preferredServices === "string" ? row.preferredServices.split(/[|;]/).map((item) => item.trim()).filter(Boolean).slice(0, 20) : [],
-        marketingConsent: row.marketingConsent === true || row.marketingConsent === "true" || row.marketingConsent === "si" || row.marketingConsent === "sì" || row.marketingConsent === "1",
+        marketingConsent: consentValue(row.marketingConsent),
         notes: optionalText(row.notes, 1000),
+        actorEmail: auth.session.email,
+        consentSource: body.source === "importazione_csv" ? "importazione_csv" : "inserimento_manuale",
       }));
     }
     return Response.json({ ok: true, imported: results.length, demo: results.every((item) => item.demo) });
@@ -34,3 +36,10 @@ function optionalDate(value: unknown) {
   return date;
 }
 function nonNegativeInt(value: unknown) { const parsed = Number(value || 0); return Number.isFinite(parsed) ? Math.max(0, Math.round(parsed)) : 0; }
+
+function consentValue(value: unknown): boolean | null {
+  if (value === undefined || value === null || value === "") return null;
+  if (value === true || ["true", "si", "sì", "1", "yes"].includes(String(value).trim().toLocaleLowerCase("it"))) return true;
+  if (value === false || ["false", "no", "0"].includes(String(value).trim().toLocaleLowerCase("it"))) return false;
+  throw new Error(`Consenso marketing non riconosciuto: ${String(value).slice(0, 30)}`);
+}

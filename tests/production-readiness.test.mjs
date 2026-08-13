@@ -84,6 +84,46 @@ test("connects Cal.com without hiding calendar failures", async () => {
   assert.match(migration, /calendar_sync_status/);
 });
 
+test("isolates WhatsApp configuration and webhooks for every organization", async () => {
+  const [whatsapp, webhook, repository, settings, runtime, runbook] = await Promise.all([
+    read("app/lib/whatsapp.ts"),
+    read("app/api/webhooks/whatsapp/route.ts"),
+    read("app/lib/repository.ts"),
+    read("app/components/AdminSettings.tsx"),
+    read("app/lib/runtime-status.ts"),
+    read("GO_LIVE.md"),
+  ]);
+  assert.match(whatsapp, /encryptIntegrationConfig/);
+  assert.match(whatsapp, /WHATSAPP_ORGANIZATION_ID === organizationId/);
+  assert.match(whatsapp, /già collegato a un’altra attività/);
+  assert.match(webhook, /x-hub-signature-256/);
+  assert.match(webhook, /phone_number_id/);
+  assert.match(webhook, /button_reply/);
+  assert.match(repository, /whatsapp\.ambiguous_inbound/);
+  assert.match(repository, /consent\.withdrawn/);
+  assert.match(repository, /non voglio piu messaggi/);
+  assert.match(settings, /Token permanente Meta/);
+  assert.match(settings, /Ultimo errore visibile/);
+  assert.match(settings, /URL webhook da inserire su Meta/);
+  assert.match(runtime, /Meta collegato per questa azienda/);
+  assert.match(runbook, /WHATSAPP_ORGANIZATION_ID/);
+});
+
+test("keeps consent state explicit during manual entry and CSV imports", async () => {
+  const [route, actions, repository] = await Promise.all([
+    read("app/api/admin/customers/route.ts"),
+    read("app/components/AdminDataActions.tsx"),
+    read("app/lib/repository.ts"),
+  ]);
+  assert.match(route, /boolean \| null/);
+  assert.match(actions, /Non registrato/);
+  assert.match(actions, /Sì, autorizzato/);
+  assert.match(repository, /consent\.received_but_blocked/);
+  assert.match(repository, /Bloccato dal cliente/);
+  assert.match(repository, /Bozza da approvare/);
+  assert.match(repository, /Invio fallito/);
+});
+
 test("includes data ingestion, conversion, settings and explicit AI privacy opt-in", async () => {
   await Promise.all([
     "app/api/admin/customers/route.ts",

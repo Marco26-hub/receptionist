@@ -4,11 +4,6 @@ const required = [
   ["SESSION_SECRET", (value) => value.length >= 32],
   ["CRON_SECRET", (value) => value.length >= 24],
   ["INTEGRATION_ENCRYPTION_KEY", (value) => value.length >= 32],
-  ["WHATSAPP_ACCESS_TOKEN", Boolean],
-  ["WHATSAPP_PHONE_NUMBER_ID", Boolean],
-  ["WHATSAPP_VERIFY_TOKEN", Boolean],
-  ["WHATSAPP_APP_SECRET", Boolean],
-  ["WHATSAPP_TEMPLATE_NAME", Boolean],
   ["LEGAL_COMPANY_NAME", Boolean],
   ["LEGAL_VAT_NUMBER", Boolean],
   ["LEGAL_ADDRESS", Boolean],
@@ -30,6 +25,12 @@ const voiceMissing = ["RETELL_API_KEY", "OPENROUTER_API_KEY oppure OPENAI_API_KE
   ? !process.env.RETELL_API_KEY
   : !(process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY));
 if (voiceMissing.length) console.warn("Assistente vocale non ancora completo:\n" + voiceMissing.map((name) => `- ${name}`).join("\n"));
+
+const whatsappEnvironmentKeys = ["WHATSAPP_ACCESS_TOKEN", "WHATSAPP_PHONE_NUMBER_ID", "WHATSAPP_VERIFY_TOKEN", "WHATSAPP_APP_SECRET", "WHATSAPP_TEMPLATE_NAME"];
+const whatsappEnvironmentStarted = whatsappEnvironmentKeys.some((name) => process.env[name]);
+const whatsappEnvironmentMissing = [...whatsappEnvironmentKeys.filter((name) => !process.env[name]), ...(!process.env.WHATSAPP_ORGANIZATION_ID ? ["WHATSAPP_ORGANIZATION_ID"] : [])];
+if (whatsappEnvironmentStarted && whatsappEnvironmentMissing.length) console.warn("Configurazione WhatsApp generale incompleta:\n" + whatsappEnvironmentMissing.map((name) => `- ${name}`).join("\n"));
+if (!whatsappEnvironmentStarted) console.warn("WhatsApp va collegato separatamente per ogni azienda dalla pagina Impostazioni.");
 
 const stripePriceKeys = ["STRIPE_PRICE_AGENDA_CLIENTI", "STRIPE_PRICE_TUTTO_IN_UNO", "STRIPE_PRICE_VOCE_BASE", "STRIPE_PRICE_VOCE_ATTIVITA", "STRIPE_PRICE_VOCE_AZIENDA"];
 const stripeMissing = [

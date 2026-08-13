@@ -18,6 +18,7 @@ import { normalizePhone } from "./security";
 import { isStripePlanKey, stripeIsConfigured, stripePlans } from "./stripe";
 import { getRuntimeServiceStatus } from "./runtime-status";
 import { getCalcomAdminStatus } from "./calcom";
+import { getWhatsAppAdminStatus } from "./whatsapp";
 
 const ACTIVE_OPPORTUNITY_STATUSES = ["new", "drafted", "approved"] as const;
 const DAY_MS = 86_400_000;
@@ -110,8 +111,8 @@ export async function getBillingIdentity(organizationId: string) {
 }
 
 export async function getDashboardData(organizationId: string) {
-  const calendarStatus = await getCalcomAdminStatus(organizationId);
-  const services = getRuntimeServiceStatus(calendarStatus);
+  const [calendarStatus, whatsappStatus] = await Promise.all([getCalcomAdminStatus(organizationId), getWhatsAppAdminStatus(organizationId)]);
+  const services = getRuntimeServiceStatus({ calendar: calendarStatus, whatsapp: whatsappStatus });
   if (!isDatabaseConfigured()) return { organization: demoOrganization, metrics: demoMetrics, opportunities: demoOpportunities, services, mode: "demo" as const };
   const db = getDb();
   const organization = await db.query.organizations.findFirst({ where: eq(organizations.id, organizationId) });
@@ -266,9 +267,17 @@ export async function convertOpportunity(input: { organizationId: string; opport
   return { ok: true, demo: false };
 }
 
-export async function createCustomer(organizationId: string, input: { firstName: string; lastName: string | null; phone: string; email: string | null; lastVisitAt: Date | null; lifetimeValueCents: number; preferredServices: string[]; marketingConsent: boolean; notes: string | null }) {
+export async function createCustomer(organizationId: string, input: { firstName: string; lastName: string | null; phone: string; email: string | null; lastVisitAt: Date | null; lifetimeValueCents: number; preferredServices: string[]; marketingConsent: boolean | null; notes: string | null; actorEmail: string; consentSource: string }) {
   if (!isDatabaseConfigured()) return { id: `demo-customer-${Date.now()}`, demo: true };
-  const [row] = await getDb().insert(customers).values({ organizationId, ...input, phone: normalizePhone(input.phone), consentRecordedAt: input.marketingConsent ? new Date() : null }).onConflictDoUpdate({ target: [customers.organizationId, customers.phone], set: { ...input, phone: normalizePhone(input.phone), consentRecordedAt: input.marketingConsent ? new Date() : null, updatedAt: new Date() } }).returning({ id: customers.id });
+  const db = getDb();
+  const phone = normalizePhone(input.phone);
+  const existing = await db.query.customers.findFirst({ where: and(eq(customers.organizationId, organizationId), eq(customers.phone, phone)) });
+  const consentRecordedAt = input.marketingConsent === null ? existing?.consentRecordedAt || null : new Date();
+  const marketingConsent = input.marketingConsent === null ? existing?.marketingConsent || false : input.marketingConsent;
+  const doNotContact = existing?.doNotContact || input.marketingConsent === false;
+  const profile = { firstName: input.firstName, lastName: input.lastName, email: input.email, lastVisitAt: input.lastVisitAt, lifetimeValueCents: input.lifetimeValueCents, preferredServices: input.preferredServices, notes: input.notes };
+  const [row] = await db.insert(customers).values({ organizationId, ...profile, phone, marketingConsent, consentRecordedAt, doNotContact }).onConflictDoUpdate({ target: [customers.organizationId, customers.phone], set: { ...profile, ...(input.marketingConsent === null ? {} : { marketingConsent, consentRecordedAt, doNotContact }), updatedAt: new Date() } }).returning({ id: customers.id });
+  if (input.marketingConsent !== null) await db.insert(auditLogs).values({ organizationId, actorEmail: input.actorEmail, action: input.marketingConsent ? doNotContact ? "consent.received_but_blocked" : "consent.granted" : "consent.denied", entityType: "customer", entityId: row.id, metadata: { source: input.consentSource } });
   return { id: row.id, demo: false };
 }
 
@@ -290,21 +299,33 @@ export async function getAdminLists(organizationId: string) {
   };
   const db = getDb();
   const [customerRows, appointmentRows, messageRows] = await Promise.all([
-    db.select({ id: customers.id, name: sql<string>`${customers.firstName} || ' ' || coalesce(${customers.lastName}, '')`, phone: customers.phone, consent: customers.marketingConsent, lastVisit: customers.lastVisitAt }).from(customers).where(eq(customers.organizationId, organizationId)).orderBy(desc(customers.lastVisitAt)).limit(500),
+    db.select({ id: customers.id, name: sql<string>`${customers.firstName} || ' ' || coalesce(${customers.lastName}, '')`, phone: customers.phone, marketingConsent: customers.marketingConsent, consentRecordedAt: customers.consentRecordedAt, doNotContact: customers.doNotContact, lastVisit: customers.lastVisitAt }).from(customers).where(eq(customers.organizationId, organizationId)).orderBy(desc(customers.lastVisitAt)).limit(500),
     db.select({ id: appointments.id, service: appointments.serviceName, customer: sql<string>`coalesce(${customers.firstName}, 'Cliente')`, startsAt: appointments.startsAt, status: appointments.status, calendarProvider: appointments.calendarProvider, calendarSyncStatus: appointments.calendarSyncStatus, calendarSyncError: appointments.calendarSyncError }).from(appointments).leftJoin(customers, eq(appointments.customerId, customers.id)).where(eq(appointments.organizationId, organizationId)).orderBy(appointments.startsAt).limit(500),
-    db.select({ id: messages.id, customer: sql<string>`${customers.firstName} || ' ' || coalesce(${customers.lastName}, '')`, body: messages.body, status: messages.status, direction: messages.direction }).from(messages).leftJoin(customers, eq(messages.customerId, customers.id)).where(eq(messages.organizationId, organizationId)).orderBy(desc(messages.createdAt)).limit(500),
+    db.select({ id: messages.id, customer: sql<string>`${customers.firstName} || ' ' || coalesce(${customers.lastName}, '')`, body: messages.body, status: messages.status, direction: messages.direction, metadata: messages.metadata }).from(messages).leftJoin(customers, eq(messages.customerId, customers.id)).where(eq(messages.organizationId, organizationId)).orderBy(desc(messages.createdAt)).limit(500),
   ]);
-  return { customers: customerRows.map((row) => ({ ...row, name: row.name.trim(), lastVisit: row.lastVisit ? row.lastVisit.toLocaleDateString("it-IT") : "Mai" })), appointments: appointmentRows.map((row) => ({ ...row, startsAt: row.startsAt.toLocaleString("it-IT", { dateStyle: "short", timeStyle: "short" }), status: row.calendarSyncError ? `${row.status} · Calendario da controllare` : row.calendarProvider === "calcom" && row.calendarSyncStatus === "synced" ? `${row.status} · Cal.com sincronizzato` : `${row.status} · Solo AgendaPiena` })), messages: messageRows, mode: "live" as const };
+  return {
+    customers: customerRows.map((row) => ({ ...row, name: row.name.trim(), lastVisit: row.lastVisit ? row.lastVisit.toLocaleDateString("it-IT") : "Mai", consent: row.doNotContact ? "Bloccato dal cliente" : row.marketingConsent ? "Consenso attivo" : row.consentRecordedAt ? "Non autorizzato" : "Non registrato" })),
+    appointments: appointmentRows.map((row) => ({ ...row, startsAt: row.startsAt.toLocaleString("it-IT", { dateStyle: "short", timeStyle: "short" }), status: row.calendarSyncError ? `${row.status} · Calendario da controllare` : row.calendarProvider === "calcom" && row.calendarSyncStatus === "synced" ? `${row.status} · Cal.com sincronizzato` : `${row.status} · Solo AgendaPiena` })),
+    messages: messageRows.map((row) => ({ ...row, direction: row.direction === "inbound" ? "In entrata" : "In uscita", status: humanMessageStatus(row.status, row.metadata) })),
+    mode: "live" as const,
+  };
+}
+
+function humanMessageStatus(status: string, metadata: Record<string, unknown>) {
+  const labels: Record<string, string> = { draft: "Bozza da approvare", approved: "Approvato", sending: "In invio", sent: "Inviato a Meta", delivered: "Consegnato", read: "Letto", replied: "Il cliente ha risposto", received: "Ricevuto", failed: "Invio fallito" };
+  const error = typeof metadata?.error === "string" ? metadata.error : null;
+  return `${labels[status] || status}${error ? `: ${error}` : ""}`;
 }
 
 export async function getOrganizationSettings(organizationId: string) {
-  if (!isDatabaseConfigured()) return { organization: demoOrganization, integrations: { database: false, ai: false, whatsapp: false, stripe: false, calendar: await getCalcomAdminStatus(organizationId) }, mode: "demo" as const };
-  const [organization, calendar] = await Promise.all([
+  if (!isDatabaseConfigured()) return { organization: demoOrganization, integrations: { database: false, ai: false, whatsapp: await getWhatsAppAdminStatus(organizationId), stripe: false, calendar: await getCalcomAdminStatus(organizationId) }, mode: "demo" as const };
+  const [organization, calendar, whatsapp] = await Promise.all([
     getDb().query.organizations.findFirst({ where: eq(organizations.id, organizationId) }),
     getCalcomAdminStatus(organizationId),
+    getWhatsAppAdminStatus(organizationId),
   ]);
   if (!organization) throw new Error("Attività non trovata");
-  return { organization, integrations: { database: true, ai: Boolean(process.env.OPENAI_API_KEY && process.env.AI_DRAFTS_ENABLED === "true"), whatsapp: Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID && process.env.WHATSAPP_TEMPLATE_NAME), stripe: stripeIsConfigured(), calendar }, mode: "live" as const };
+  return { organization, integrations: { database: true, ai: Boolean((process.env.OPENAI_API_KEY || process.env.OPENROUTER_API_KEY) && process.env.AI_DRAFTS_ENABLED === "true"), whatsapp, stripe: stripeIsConfigured(), calendar }, mode: "live" as const };
 }
 
 export async function updateOrganizationSettings(organizationId: string, input: { name: string; city: string | null; toneOfVoice: string; averageTicketCents: number; settings: Record<string, unknown> }) {
@@ -404,22 +425,42 @@ function defaultDraft(firstName: string, centerName: string, service?: string) {
   return `Ciao ${firstName}, è da un po' che non ci vediamo${service ? ` per ${service}` : ""}. Se ti fa piacere, possiamo trovare con calma il momento più comodo per te. ${centerName}`;
 }
 
-export async function recordWhatsAppEvent(payload: { from?: string; body?: string; externalId?: string; status?: string; raw: Record<string, unknown> }) {
+export async function recordWhatsAppEvent(payload: { organizationId?: string | null; phoneNumberId?: string; from?: string; body?: string; externalId?: string; status?: string; messageType?: string; errors?: Array<{ code?: number; title?: string; message?: string; error_data?: { details?: string } }>; raw: Record<string, unknown> }) {
   if (!isDatabaseConfigured()) return { recorded: true, demo: true };
   const db = getDb();
   if (payload.status && payload.externalId) {
-    const mapped = ["sent", "delivered", "read", "failed"].includes(payload.status) ? payload.status as "sent" | "delivered" | "read" | "failed" : "sent";
-    await db.update(messages).set({ status: mapped, metadata: payload.raw }).where(eq(messages.externalMessageId, payload.externalId));
+    if (!["sent", "delivered", "read", "failed"].includes(payload.status)) {
+      await db.insert(auditLogs).values({ organizationId: payload.organizationId || null, action: "whatsapp.unknown_status", entityType: "message", entityId: payload.externalId, metadata: { status: payload.status, phoneNumberId: payload.phoneNumberId } });
+      return { recorded: false, demo: false };
+    }
+    const existing = await db.query.messages.findFirst({ where: payload.organizationId ? and(eq(messages.externalMessageId, payload.externalId), eq(messages.organizationId, payload.organizationId)) : eq(messages.externalMessageId, payload.externalId) });
+    if (!existing) {
+      await db.insert(auditLogs).values({ organizationId: payload.organizationId || null, action: "whatsapp.unmatched_status", entityType: "message", entityId: payload.externalId, metadata: { status: payload.status, phoneNumberId: payload.phoneNumberId } });
+      return { recorded: false, demo: false };
+    }
+    const firstError = payload.errors?.[0];
+    const failure = firstError ? { code: firstError.code, message: firstError.error_data?.details || firstError.message || firstError.title || "Invio rifiutato da Meta" } : undefined;
+    await db.update(messages).set({ status: payload.status as "sent" | "delivered" | "read" | "failed", metadata: { ...existing.metadata, providerEvent: payload.raw, ...(failure ? { error: String(failure.message).slice(0, 240), errorCode: failure.code } : {}) } }).where(and(eq(messages.id, existing.id), eq(messages.organizationId, existing.organizationId)));
+    if (failure) await db.insert(auditLogs).values({ organizationId: existing.organizationId, action: "whatsapp.delivery_failed", entityType: "message", entityId: existing.id, metadata: failure });
     return { recorded: true, demo: false };
   }
   if (!payload.from || !payload.body) return { recorded: false, demo: false };
-  if (payload.externalId && await db.query.messages.findFirst({ where: eq(messages.externalMessageId, payload.externalId) })) return { recorded: true, demo: false };
+  if (payload.externalId && await db.query.messages.findFirst({ where: payload.organizationId ? and(eq(messages.externalMessageId, payload.externalId), eq(messages.organizationId, payload.organizationId)) : eq(messages.externalMessageId, payload.externalId) })) return { recorded: true, demo: false };
   const normalized = normalizePhone(payload.from);
-  const customer = await db.query.customers.findFirst({ where: eq(customers.phone, normalized), orderBy: [desc(customers.updatedAt)] });
+  let customer = payload.organizationId ? await db.query.customers.findFirst({ where: and(eq(customers.organizationId, payload.organizationId), eq(customers.phone, normalized)) }) : null;
   if (!customer) {
-    await db.insert(auditLogs).values({ action: "whatsapp.unmatched_inbound", entityType: "message", entityId: payload.externalId, metadata: payload.raw });
+    const matches = await db.select().from(customers).where(eq(customers.phone, normalized)).orderBy(desc(customers.updatedAt)).limit(2);
+    if (matches.length === 1) customer = matches[0];
+    else if (matches.length > 1) {
+      await db.insert(auditLogs).values({ action: "whatsapp.ambiguous_inbound", entityType: "message", entityId: payload.externalId, metadata: { phone: normalized, phoneNumberId: payload.phoneNumberId } });
+      return { recorded: false, demo: false };
+    }
+  }
+  if (!customer) {
+    await db.insert(auditLogs).values({ organizationId: payload.organizationId || null, action: "whatsapp.unmatched_inbound", entityType: "message", entityId: payload.externalId, metadata: { phone: normalized, phoneNumberId: payload.phoneNumberId, messageType: payload.messageType } });
     return { recorded: false, demo: false };
   }
+  const withdrewConsent = isWhatsAppOptOut(payload.body);
   await db.transaction(async (transaction) => {
     await transaction.insert(messages).values({ organizationId: customer.organizationId, customerId: customer.id, channel: "whatsapp", direction: "inbound", body: payload.body!, status: "received", externalMessageId: payload.externalId, metadata: payload.raw });
     const lastOutbound = await transaction.query.messages.findFirst({ where: and(eq(messages.organizationId, customer.organizationId), eq(messages.customerId, customer.id), eq(messages.direction, "outbound")), orderBy: [desc(messages.createdAt)] });
@@ -427,9 +468,18 @@ export async function recordWhatsAppEvent(payload: { from?: string; body?: strin
       await transaction.update(messages).set({ status: "replied" }).where(eq(messages.id, lastOutbound.id));
       if (lastOutbound.opportunityId) await transaction.update(opportunities).set({ updatedAt: new Date(), metadata: sql`${opportunities.metadata} || ${JSON.stringify({ repliedAt: new Date().toISOString() })}::jsonb` }).where(eq(opportunities.id, lastOutbound.opportunityId));
     }
-    await transaction.insert(auditLogs).values({ organizationId: customer.organizationId, action: "whatsapp.inbound", entityType: "customer", entityId: customer.id });
+    if (withdrewConsent) {
+      await transaction.update(customers).set({ marketingConsent: false, doNotContact: true, updatedAt: new Date() }).where(and(eq(customers.id, customer.id), eq(customers.organizationId, customer.organizationId)));
+      await transaction.insert(auditLogs).values({ organizationId: customer.organizationId, action: "consent.withdrawn", entityType: "customer", entityId: customer.id, metadata: { channel: "whatsapp", source: "customer_message", messageId: payload.externalId, phoneNumberId: payload.phoneNumberId } });
+    }
+    await transaction.insert(auditLogs).values({ organizationId: customer.organizationId, action: "whatsapp.inbound", entityType: "customer", entityId: customer.id, metadata: { messageType: payload.messageType, optOut: withdrewConsent, phoneNumberId: payload.phoneNumberId } });
   });
-  return { recorded: true, demo: false };
+  return { recorded: true, demo: false, optOut: withdrewConsent };
+}
+
+function isWhatsAppOptOut(body: string) {
+  const normalized = body.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("it").replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+  return new Set(["stop", "basta", "annulla", "cancellami", "disiscrivimi", "non scrivetemi", "non contattatemi", "non voglio piu messaggi", "unsubscribe"]).has(normalized);
 }
 
 export async function updateSubscriptionFromStripe(event: { id?: string; type: string; data: { object: Record<string, unknown> } }) {

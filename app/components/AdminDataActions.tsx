@@ -16,7 +16,7 @@ export function AdminDataActions({ kind, customers = [] }: { kind: "customers" |
     const data = Object.fromEntries(new FormData(event.currentTarget));
     const payload = kind === "customers" ? {
       ...data,
-      marketingConsent: data.marketingConsent === "on",
+      marketingConsent: data.marketingConsent === "yes" ? true : data.marketingConsent === "no" ? false : null,
       preferredServices: String(data.preferredServices || "").split(/[|;,]/).map((item) => item.trim()).filter(Boolean),
       lifetimeValueCents: Math.round(Number(data.lifetimeValueEuros || 0) * 100),
     } : { ...data, valueCents: Math.round(Number(data.valueEuros || 0) * 100) };
@@ -39,11 +39,11 @@ export function AdminDataActions({ kind, customers = [] }: { kind: "customers" |
         lastVisitAt: row.ultima_visita || row.last_visit_at || null,
         lifetimeValueCents: Math.round(Number(row.valore_totale_euro || row.lifetime_value_euros || 0) * 100),
         preferredServices: row.servizi || row.preferred_services || "",
-        marketingConsent: row.consenso_marketing || row.consenso || row.marketing_consent || false,
+        marketingConsent: parseConsent(row.consenso_marketing || row.consenso || row.marketing_consent),
         notes: row.note || row.notes || null,
       })).filter((row) => row.firstName && row.phone);
       if (!rows.length) throw new Error("Nessuna riga valida. Servono almeno nome e telefono.");
-      const response = await fetch("/api/admin/customers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ rows }) });
+      const response = await fetch("/api/admin/customers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ rows, source: "importazione_csv" }) });
       const result = await response.json(); if (!response.ok) throw new Error(result.error || "Importazione non riuscita");
       setNotice(`${result.imported} clienti importati`); setTimeout(() => window.location.reload(), 700);
     } catch (error) { setNotice(error instanceof Error ? error.message : "File non valido"); }
@@ -60,7 +60,7 @@ export function AdminDataActions({ kind, customers = [] }: { kind: "customers" |
         <label>Telefono<input name="phone" type="tel" required placeholder="+39..." /></label><label>Email<input name="email" type="email" /></label>
         <label>Ultima visita<input name="lastVisitAt" type="date" /></label><label>Valore storico (€)<input name="lifetimeValueEuros" type="number" min="0" step="0.01" /></label>
         <label className="wide-field">Servizi preferiti<input name="preferredServices" placeholder="Viso, laser, massaggio" /></label>
-        <label className="check-field"><input name="marketingConsent" type="checkbox" />Consenso marketing registrato</label>
+        <label>Consenso ai messaggi<select name="marketingConsent" defaultValue=""><option value="">Non registrato</option><option value="yes">Sì, autorizzato</option><option value="no">No, non autorizzato</option></select></label>
       </> : <>
         <label>Cliente<select name="customerId"><option value="">Nessun cliente</option>{customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}</option>)}</select></label>
         <label>Servizio<input name="serviceName" required /></label><label>Inizio<input name="startsAt" type="datetime-local" required /></label><label>Fine<input name="endsAt" type="datetime-local" /></label>
@@ -85,4 +85,12 @@ function parseCsv(text: string) {
   row.push(value.trim()); if (row.some(Boolean)) rows.push(row);
   const headers = (rows.shift() || []).map((header) => header.toLowerCase().trim().replace(/\s+/g, "_"));
   return rows.map((values) => Object.fromEntries(headers.map((header, index) => [header, values[index] || ""])));
+}
+
+function parseConsent(value: string) {
+  const normalized = value.trim().toLocaleLowerCase("it");
+  if (!normalized) return null;
+  if (["si", "sì", "yes", "true", "1"].includes(normalized)) return true;
+  if (["no", "false", "0"].includes(normalized)) return false;
+  throw new Error(`Consenso non riconosciuto nel CSV: ${value.slice(0, 30)}`);
 }

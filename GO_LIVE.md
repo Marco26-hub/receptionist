@@ -30,11 +30,14 @@ Configura nella repository GitHub:
 
 ## 4. WhatsApp e AI
 
-1. Configura Meta WhatsApp Cloud API e un numero mittente reale.
+1. Configura Meta WhatsApp Cloud API e un numero mittente reale per l'azienda.
 2. Fai approvare un template in italiano con un parametro nel corpo (`{{1}}`).
-3. Registra `https://DOMINIO/api/webhooks/whatsapp` e abilita l'evento `messages`.
-4. Prova invio, consegna, lettura, risposta e opt-out con numeri autorizzati.
-5. Lascia `AI_DRAFTS_ENABLED=false` finché ruoli privacy, DPA e policy interne non sono approvati.
+3. Accedi come proprietario, apri `Admin > Impostazioni` e collega WhatsApp con token permanente, ID numero, App Secret, token di verifica e template.
+4. Copia dalla stessa schermata l'URL webhook personale dell'azienda, registralo su Meta e abilita l'evento `messages`.
+5. Non collegare lo stesso ID numero a due aziende: il sistema lo impedisce per evitare scambi di dati.
+6. Prova invio, consegna, lettura, risposta e opt-out (`STOP`) con numeri autorizzati. Verifica che stato ed eventuale errore siano visibili in `Admin > Messaggi`.
+7. Le vecchie variabili `WHATSAPP_*` su Render sono solo una compatibilità per una singola azienda e richiedono anche `WHATSAPP_ORGANIZATION_ID`. Nel normale uso multicliente non servono.
+8. Lascia `AI_DRAFTS_ENABLED=false` finché ruoli privacy, DPA e policy interne non sono approvati.
 
 ## 5. Collaudo finale
 
