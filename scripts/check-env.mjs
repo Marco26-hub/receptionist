@@ -29,3 +29,11 @@ const voiceMissing = ["RETELL_API_KEY", "OPENROUTER_API_KEY oppure OPENAI_API_KE
   ? !process.env.RETELL_API_KEY
   : !(process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY));
 if (voiceMissing.length) console.warn("Assistente vocale non ancora completo:\n" + voiceMissing.map((name) => `- ${name}`).join("\n"));
+
+const stripePriceKeys = ["STRIPE_PRICE_AGENDA_CLIENTI", "STRIPE_PRICE_TUTTO_IN_UNO", "STRIPE_PRICE_VOCE_BASE", "STRIPE_PRICE_VOCE_ATTIVITA", "STRIPE_PRICE_VOCE_AZIENDA"];
+const stripeMissing = [
+  ...(!process.env.STRIPE_SECRET_KEY ? ["STRIPE_SECRET_KEY"] : []),
+  ...(!process.env.STRIPE_WEBHOOK_SECRET ? ["STRIPE_WEBHOOK_SECRET"] : []),
+  ...(!stripePriceKeys.some((name) => process.env[name]) && !process.env.STRIPE_PRICE_ID ? ["almeno un codice prezzo Stripe"] : []),
+];
+if (stripeMissing.length) console.warn("Pagamenti Stripe non ancora completi:\n" + stripeMissing.map((name) => `- ${name}`).join("\n"));

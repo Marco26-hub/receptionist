@@ -15,6 +15,7 @@ import {
 import { demoMetrics, demoOpportunities, demoOrganization } from "./demo-data";
 import { estimateEmptySlotScore, rankOpportunities } from "./optimization";
 import { normalizePhone } from "./security";
+import { isStripePlanKey, stripeIsConfigured, stripePlans } from "./stripe";
 
 const ACTIVE_OPPORTUNITY_STATUSES = ["new", "drafted", "approved"] as const;
 const DAY_MS = 86_400_000;
@@ -77,7 +78,7 @@ export async function getOnboardingData(organizationId: string) {
 }
 
 export async function getBillingData(organizationId: string) {
-  if (!isDatabaseConfigured()) return { subscription: null, stripeConfigured: false, mode: "demo" as const };
+  if (!isDatabaseConfigured()) return { subscription: null, stripeConfigured: false, configuredPlans: [] as string[], mode: "demo" as const };
   const subscription = await getDb().query.subscriptions.findFirst({
     where: eq(subscriptions.organizationId, organizationId),
     orderBy: [desc(subscriptions.updatedAt)],
@@ -88,10 +89,22 @@ export async function getBillingData(organizationId: string) {
       status: subscription.status,
       monthlyAmountCents: subscription.monthlyAmountCents,
       currentPeriodEnd: subscription.currentPeriodEnd,
+      stripeCustomerId: subscription.stripeCustomerId,
     } : null,
-    stripeConfigured: Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_PRICE_ID && process.env.STRIPE_WEBHOOK_SECRET),
+    stripeConfigured: stripeIsConfigured(),
+    configuredPlans: Object.keys(stripePlans).filter((key) => Boolean(process.env[stripePlans[key as keyof typeof stripePlans].recurringEnv]) || (key === "agenda_clienti" && process.env.STRIPE_PRICE_ID)),
     mode: "live" as const,
   };
+}
+
+export async function getBillingIdentity(organizationId: string) {
+  if (!isDatabaseConfigured()) throw new Error("Database non configurato");
+  const [organization, subscription] = await Promise.all([
+    getDb().query.organizations.findFirst({ where: eq(organizations.id, organizationId) }),
+    getDb().query.subscriptions.findFirst({ where: eq(subscriptions.organizationId, organizationId), orderBy: [desc(subscriptions.updatedAt)] }),
+  ]);
+  if (!organization) throw new Error("Attività non trovata");
+  return { organizationName: organization.name, stripeCustomerId: subscription?.stripeCustomerId || null };
 }
 
 export async function getDashboardData(organizationId: string) {
@@ -411,13 +424,33 @@ export async function recordWhatsAppEvent(payload: { from?: string; body?: strin
   return { recorded: true, demo: false };
 }
 
-export async function updateSubscriptionFromStripe(event: { type: string; data: { object: Record<string, unknown> } }) {
+export async function updateSubscriptionFromStripe(event: { id?: string; type: string; data: { object: Record<string, unknown> } }) {
   if (!isDatabaseConfigured()) return { updated: true, demo: true };
   const object = event.data.object;
-  const subscriptionId = typeof object.id === "string" ? object.id : null;
-  if (!subscriptionId) return { updated: false, demo: false };
-  const status = typeof object.status === "string" ? object.status : event.type;
+  const metadata = object.metadata && typeof object.metadata === "object" ? object.metadata as Record<string, unknown> : {};
+  const isCheckout = event.type.startsWith("checkout.session.");
+  const subscriptionId = isCheckout
+    ? (typeof object.subscription === "string" ? object.subscription : null)
+    : (typeof object.id === "string" ? object.id : null);
+  const customerId = typeof object.customer === "string" ? object.customer : null;
+  let organizationId = typeof object.client_reference_id === "string" ? object.client_reference_id : typeof metadata.organization_id === "string" ? metadata.organization_id : null;
+  let existing = subscriptionId ? await getDb().query.subscriptions.findFirst({ where: eq(subscriptions.stripeSubscriptionId, subscriptionId) }) : null;
+  if (!existing && customerId) existing = await getDb().query.subscriptions.findFirst({ where: eq(subscriptions.stripeCustomerId, customerId), orderBy: [desc(subscriptions.updatedAt)] });
+  organizationId ||= existing?.organizationId || null;
+  if (!organizationId || !subscriptionId) return { updated: false, demo: false };
+
+  const requestedPlan = typeof metadata.plan_key === "string" && isStripePlanKey(metadata.plan_key) ? metadata.plan_key : null;
+  const plan = requestedPlan || (existing?.plan && isStripePlanKey(existing.plan) ? existing.plan : "agenda_clienti");
+  const items = object.items && typeof object.items === "object" ? object.items as { data?: Array<{ price?: { unit_amount?: number } }> } : null;
+  const stripeAmount = items?.data?.[0]?.price?.unit_amount;
+  const monthlyAmountCents = typeof stripeAmount === "number" ? stripeAmount : stripePlans[plan].monthlyAmountCents;
+  const status = isCheckout
+    ? (object.payment_status === "paid" || object.payment_status === "no_payment_required" ? "active" : "incomplete")
+    : (typeof object.status === "string" ? object.status : existing?.status || "incomplete");
   const periodEnd = typeof object.current_period_end === "number" ? new Date(object.current_period_end * 1000) : null;
-  await getDb().update(subscriptions).set({ status, currentPeriodEnd: periodEnd, updatedAt: new Date() }).where(eq(subscriptions.stripeSubscriptionId, subscriptionId));
+  const values = { organizationId, stripeCustomerId: customerId || existing?.stripeCustomerId || null, stripeSubscriptionId: subscriptionId, status, plan, monthlyAmountCents, currentPeriodEnd: periodEnd || existing?.currentPeriodEnd || null, updatedAt: new Date() };
+  if (existing) await getDb().update(subscriptions).set(values).where(eq(subscriptions.id, existing.id));
+  else await getDb().insert(subscriptions).values(values);
+  await getDb().insert(auditLogs).values({ organizationId, action: `stripe.${event.type}`, entityType: "subscription", entityId: subscriptionId, metadata: { stripeEventId: event.id, status, plan } });
   return { updated: true, demo: false };
 }

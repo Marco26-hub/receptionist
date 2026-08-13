@@ -113,6 +113,23 @@ test("uses the public checkout origin and keeps optimization reruns bounded", as
   assert.match(repository, /created < remainingSlots/);
 });
 
+test("ships authenticated Stripe checkout, customer portal and signed subscription sync", async () => {
+  const [stripe, checkout, portal, webhook, billing] = await Promise.all([
+    read("app/lib/stripe.ts"),
+    read("app/api/checkout/route.ts"),
+    read("app/api/admin/billing/portal/route.ts"),
+    read("app/api/webhooks/stripe/route.ts"),
+    read("app/components/BillingActions.tsx"),
+  ]);
+  assert.match(stripe, /subscription_data\[metadata\]\[organization_id\]/);
+  assert.match(stripe, /billing_portal\/sessions/);
+  assert.match(checkout, /requireApiAdmin/);
+  assert.match(portal, /stripeCustomerId/);
+  assert.match(webhook, /checkout\.session\.completed/);
+  assert.match(webhook, /sameSignature/);
+  assert.match(billing, /Gestisci pagamento/);
+});
+
 test("ships a guarded end-to-end voice workflow", async () => {
   const [retell, voiceAi, activation, pause, booking, findBooking, reschedule, cancel, webhook, admin, repository, runbook] = await Promise.all([
     read("app/lib/retell.ts"),

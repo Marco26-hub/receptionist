@@ -57,9 +57,31 @@ services:
         value: it
       - key: STRIPE_SECRET_KEY
         sync: false
+      - key: STRIPE_PRICE_AGENDA_CLIENTI
+        sync: false
+      - key: STRIPE_PRICE_TUTTO_IN_UNO
+        sync: false
+      - key: STRIPE_PRICE_VOCE_BASE
+        sync: false
+      - key: STRIPE_PRICE_VOCE_ATTIVITA
+        sync: false
+      - key: STRIPE_PRICE_VOCE_AZIENDA
+        sync: false
+      - key: STRIPE_PRICE_SETUP_AGENDA_CLIENTI
+        sync: false
+      - key: STRIPE_PRICE_SETUP_TUTTO_IN_UNO
+        sync: false
+      - key: STRIPE_PRICE_SETUP_VOCE_BASE
+        sync: false
+      - key: STRIPE_PRICE_SETUP_VOCE_ATTIVITA
+        sync: false
+      - key: STRIPE_PRICE_SETUP_VOCE_AZIENDA
+        sync: false
       - key: STRIPE_PRICE_ID
         sync: false
       - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: STRIPE_PORTAL_CONFIGURATION_ID
         sync: false
       - key: SENTRY_DSN
         sync: false

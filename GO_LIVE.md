@@ -55,3 +55,12 @@ Configura nella repository GitHub:
 7. Premi `Metti in pausa` e chiama di nuovo il numero: Retell non deve più inoltrare le chiamate all’assistente.
 
 La registrazione è disattivata di base. Prima di abilitarla vanno definiti informativa, consenso, accessi e tempi di conservazione.
+
+## 7. Pagamenti Stripe
+
+1. In Stripe crea i cinque prezzi mensili e i relativi prezzi una tantum di avvio, tutti in euro e IVA esclusa.
+2. Inserisci su Render `STRIPE_SECRET_KEY`, i codici `STRIPE_PRICE_*` e `STRIPE_WEBHOOK_SECRET`. Usa prima le chiavi test `sk_test_...`.
+3. Registra il webhook `https://DOMINIO/api/webhooks/stripe` e abilita `checkout.session.completed`, `checkout.session.async_payment_succeeded` e tutti gli eventi `customer.subscription.*`.
+4. Attiva il Portale cliente Stripe e abilita aggiornamento carta, fatture, cambio piano e disdetta. Se usi una configurazione specifica, inserisci `STRIPE_PORTAL_CONFIGURATION_ID`.
+5. Dall’area `Piano e pagamenti` prova checkout, annullamento, pagamento riuscito, rinnovo, carta rifiutata, upgrade, downgrade e disdetta.
+6. Verifica nel database che cliente Stripe, abbonamento, piano, importo, stato e data di rinnovo appartengano all’azienda corretta.
