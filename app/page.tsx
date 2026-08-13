@@ -7,8 +7,8 @@ import { legalEntity } from "./lib/legal";
 import { cities, contactHref, siteUrl } from "./lib/site";
 
 export const metadata: Metadata = {
-  title: "Assistente AI per attività su appuntamento",
-  description: "Recupera clienti, riempi gli orari liberi e prepara messaggi WhatsApp per beauty, parrucchieri, cliniche, dentisti e wellness.",
+  title: "Segretaria telefonica AI e agenda intelligente",
+  description: "AgendaPiena AI risponde alle chiamate, fissa appuntamenti, recupera clienti e prepara messaggi WhatsApp per attività che lavorano su appuntamento.",
   alternates: { canonical: "/" },
 };
 
@@ -19,10 +19,10 @@ const opportunities = [
 ];
 
 const benefits = [
-  ["Recupera clienti", "Individua chi non prenota da tempo e suggerisce il momento giusto per ricontattarla."],
-  ["Riempie gli spazi liberi", "Abbina ogni orario disponibile alle clienti più adatte, senza inviare messaggi a caso."],
-  ["Scrive con il tuo tono", "Prepara messaggi WhatsApp naturali. Tu li controlli e decidi quali inviare."],
-  ["Mostra il valore", "Ti fa vedere quali azioni possono generare appuntamenti e quanto possono valere."],
+  ["Risponde al telefono", "Accoglie chi chiama, spiega servizi, prezzi e orari usando soltanto le informazioni approvate da te."],
+  ["Fissa gli appuntamenti", "Controlla gli orari disponibili, raccoglie i dati e salva la prenotazione dopo la conferma del cliente."],
+  ["Recupera i clienti", "Trova chi non torna da tempo, i percorsi interrotti e le persone adatte a un orario rimasto libero."],
+  ["Prepara i messaggi", "Scrive messaggi WhatsApp personali. Tu li controlli e decidi quali inviare."],
 ];
 
 const steps = [
@@ -58,7 +58,7 @@ const schemas = [
     name: "AgendaPiena AI",
     applicationCategory: "BusinessApplication",
     operatingSystem: "Web",
-    description: "Assistente AI per attività su appuntamento che recupera clienti, riempie gli orari liberi e prepara messaggi WhatsApp da approvare.",
+    description: "Segretaria telefonica AI e agenda intelligente che risponde alle chiamate, fissa appuntamenti, recupera clienti e prepara messaggi WhatsApp da approvare.",
     offers: { "@type": "Offer", price: "390", priceCurrency: "EUR", url: `${siteUrl}/prezzi` },
   },
 ];
@@ -87,19 +87,19 @@ export default function Home() {
         <SiteHeader />
         <section className="hero-grid">
           <div className="hero-copy">
-            <span className="eyebrow">Intelligenza operativa per attività su appuntamento</span>
-            <h1>Più appuntamenti. Meno tempo perso.</h1>
+            <span className="eyebrow">Segretaria telefonica e agenda intelligente</span>
+            <h1>Risponde al telefono. Fissa appuntamenti. Riempie l’agenda.</h1>
             <p>
-              AgendaPiena AI trova le persone da ricontattare, gli orari da riempire e i percorsi da riprendere. Poi prepara messaggi WhatsApp personali, pronti per la tua approvazione.
+              AgendaPiena AI è un’assistente virtuale per attività su appuntamento. Risponde alle chiamate, informa i clienti, prenota negli orari disponibili e prepara i messaggi WhatsApp per recuperare chi non torna da tempo.
             </p>
             <div className="hero-actions">
               <a className="primary-action" href={contactHref}>Prenota una demo</a>
-              <a className="secondary-action" href="/come-funziona">Scopri come funziona</a>
+              <a className="secondary-action" href="/come-funziona">Guarda cosa fa</a>
             </div>
             <div className="proof-strip" aria-label="Caratteristiche principali">
-              <span>Beauty, wellness e studi</span>
-              <span>Controllo umano</span>
-              <span>Pronto da telefono</span>
+              <span>Italiano e inglese</span>
+              <span>Tu scegli le regole</span>
+              <span>Attivo anche quando sei occupato</span>
             </div>
           </div>
 
@@ -120,16 +120,25 @@ export default function Home() {
         </section>
       </div>
 
+      <section className="service-clarity section">
+        <div className="section-title"><span>In parole semplici</span><h2>Due servizi, anche nello stesso piano.</h2><p>Puoi usare soltanto la segretaria telefonica, soltanto il sistema per recuperare clienti, oppure collegarli per gestire tutto da un unico pannello.</p></div>
+        <div className="service-clarity-grid">
+          <article><span>01</span><h3>Segretaria telefonica AI</h3><p>Risponde al numero dell’attività, parla con il cliente, comunica le informazioni corrette e fissa, sposta o annulla appuntamenti.</p><a href="/assistente-vocale-ai">Scopri il servizio voce →</a></article>
+          <article><span>02</span><h3>Agenda, clienti e WhatsApp</h3><p>Controlla agenda e storico clienti, segnala chi ricontattare e prepara messaggi personali da approvare prima dell’invio.</p><a href="/prodotto">Scopri agenda e clienti →</a></article>
+          <article><span>03</span><h3>Tutto in uno</h3><p>Telefonate, prenotazioni, recupero clienti e messaggi lavorano insieme. Tu e il personale vedete tutto nello stesso posto.</p><a href="/prezzi">Confronta i piani →</a></article>
+        </div>
+      </section>
+
       <section className="statement-band">
-        <p>Non risponde soltanto ai messaggi.</p>
-        <h2>Ti dice chi contattare, perché farlo e quale appuntamento puoi recuperare.</h2>
+        <p>Quando non puoi rispondere, risponde lei.</p>
+        <h2>Il cliente riceve aiuto subito. Tu ritrovi la richiesta e l’appuntamento nel pannello.</h2>
       </section>
 
       <section className="section">
         <div className="section-title">
-          <span>Cosa fa ogni giorno</span>
-          <h2>Il lavoro commerciale che resta sempre indietro.</h2>
-          <p>AgendaPiena trasforma i dati che hai già in una lista breve di azioni utili. Niente campagne generiche e niente pannelli complicati.</p>
+          <span>Cosa fa davvero</span>
+          <h2>Gestisce le richieste ripetitive, senza toglierti il controllo.</h2>
+          <p>L’assistente usa servizi, prezzi, orari e regole inseriti dalla tua attività. Le richieste delicate o non previste vengono passate a una persona.</p>
         </div>
         <div className="benefit-grid">
           {benefits.map(([title, copy], index) => (
@@ -142,11 +151,11 @@ export default function Home() {
       </section>
 
       <section className="full-workflow">
-        <div className="section-title"><span>Il flusso completo</span><h2>Dall’agenda al risultato, con controllo umano.</h2></div>
+        <div className="section-title"><span>Il flusso completo</span><h2>Da una richiesta a un appuntamento confermato.</h2></div>
         <div className="workflow-rail">
-          {["Importa", "Verifica consenso", "Analizza", "Assegna priorità", "Scrive", "Approvi", "Invia", "Gestisce risposta", "Prenota", "Impara"].map((label, index) => <div key={label}><span>{String(index + 1).padStart(2, "0")}</span><strong>{label}</strong></div>)}
+          {["Riceve la richiesta", "Capisce cosa serve", "Controlla l’agenda", "Prenota o prepara il messaggio", "Registra il risultato"].map((label, index) => <div key={label}><span>{String(index + 1).padStart(2, "0")}</span><strong>{label}</strong></div>)}
         </div>
-        <p>Ogni passaggio viene registrato. Puoi sempre capire perché una cliente è stata selezionata, chi ha approvato il messaggio e quale risultato ha prodotto.</p>
+        <p>Ogni passaggio resta visibile. Puoi controllare cosa ha chiesto il cliente, quale risposta ha ricevuto e se l’appuntamento è stato fissato.</p>
         <a className="text-link" href="/come-funziona">Vedi ogni fase nel dettaglio <span>→</span></a>
       </section>
 
@@ -181,10 +190,14 @@ export default function Home() {
       </section>
 
       <section className="section audience-section">
-        <div className="section-title"><span>Creato per chi lavora su appuntamento</span><h2>Un aiuto concreto per realtà diverse.</h2></div>
+        <div className="section-title"><span>Per chi lavora su appuntamento</span><h2>Utile ogni volta che una chiamata persa può diventare lavoro perso.</h2></div>
         <div className="audience-grid">
           <a href="/settori/centri-estetici"><span>01</span><h3>Centri estetici</h3><p>Richiami, pacchetti, laser, viso e corpo.</p></a>
           <a href="/settori/cliniche-estetiche"><span>02</span><h3>Cliniche estetiche e longevità</h3><p>Follow-up, controlli e continuità dei percorsi.</p></a>
+          <a href="/settori/parrucchieri"><span>03</span><h3>Parrucchieri e barberie</h3><p>Telefonate, appuntamenti, colore e richiami personali.</p></a>
+          <a href="/settori/studi-dentistici"><span>04</span><h3>Studi dentistici</h3><p>Prenotazioni, spostamenti e richiami organizzativi.</p></a>
+          <a href="/settori/fisioterapia"><span>05</span><h3>Fisioterapia e osteopatia</h3><p>Sedute, cicli da completare e richieste da passare allo studio.</p></a>
+          <a href="/settori"><span>06</span><h3>Altre attività</h3><p>Officine, studi professionali, ristorazione e servizi locali.</p></a>
         </div>
       </section>
 
