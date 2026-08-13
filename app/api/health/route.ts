@@ -6,6 +6,7 @@ export async function GET(request: Request) {
   const checks = {
     database: isDatabaseConfigured(),
     session: Boolean(process.env.SESSION_SECRET && process.env.SESSION_SECRET.length >= 32),
+    integrationEncryption: Boolean(process.env.INTEGRATION_ENCRYPTION_KEY && process.env.INTEGRATION_ENCRYPTION_KEY.length >= 32),
     ai: Boolean(process.env.OPENAI_API_KEY && process.env.AI_DRAFTS_ENABLED === "true"),
     voice: Boolean(process.env.RETELL_API_KEY),
     voiceAi: Boolean(process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY),
@@ -22,7 +23,7 @@ export async function GET(request: Request) {
   if (checks.database && new URL(request.url).searchParams.get("deep") === "1") {
     try { await getDb().execute(sql`select 1`); databaseReachable = true; } catch { databaseReachable = false; }
   } else if (checks.database) databaseReachable = true;
-  const commonReady = checks.database && checks.session && checks.authProvider && checks.legal && checks.publicUrl && checks.monitoring && checks.backupPolicy && databaseReachable;
+  const commonReady = checks.database && checks.session && checks.integrationEncryption && checks.authProvider && checks.legal && checks.publicUrl && checks.monitoring && checks.backupPolicy && databaseReachable;
   const readiness = {
     platform: commonReady,
     agenda: commonReady && checks.cron,

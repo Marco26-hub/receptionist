@@ -54,6 +54,10 @@ export const appointments = pgTable("appointments", {
   organizationId: uuid("organization_id").references(() => organizations.id, { onDelete: "cascade" }).notNull(),
   customerId: uuid("customer_id").references(() => customers.id, { onDelete: "set null" }),
   externalId: text("external_id"),
+  calendarProvider: text("calendar_provider"),
+  calendarEventId: text("calendar_event_id"),
+  calendarSyncStatus: text("calendar_sync_status").default("not_connected").notNull(),
+  calendarSyncError: text("calendar_sync_error"),
   serviceName: text("service_name").notNull(),
   startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
   endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
@@ -62,6 +66,7 @@ export const appointments = pgTable("appointments", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
   index("appointments_org_starts_idx").on(table.organizationId, table.startsAt),
+  index("appointments_org_calendar_idx").on(table.organizationId, table.calendarProvider, table.calendarEventId),
   uniqueIndex("appointments_org_external_idx").on(table.organizationId, table.externalId),
 ]);
 

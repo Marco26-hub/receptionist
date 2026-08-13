@@ -17,6 +17,7 @@ import { estimateEmptySlotScore, rankOpportunities } from "./optimization";
 import { normalizePhone } from "./security";
 import { isStripePlanKey, stripeIsConfigured, stripePlans } from "./stripe";
 import { getRuntimeServiceStatus } from "./runtime-status";
+import { getCalcomAdminStatus } from "./calcom";
 
 const ACTIVE_OPPORTUNITY_STATUSES = ["new", "drafted", "approved"] as const;
 const DAY_MS = 86_400_000;
@@ -109,7 +110,8 @@ export async function getBillingIdentity(organizationId: string) {
 }
 
 export async function getDashboardData(organizationId: string) {
-  const services = getRuntimeServiceStatus();
+  const calendarStatus = await getCalcomAdminStatus(organizationId);
+  const services = getRuntimeServiceStatus(calendarStatus);
   if (!isDatabaseConfigured()) return { organization: demoOrganization, metrics: demoMetrics, opportunities: demoOpportunities, services, mode: "demo" as const };
   const db = getDb();
   const organization = await db.query.organizations.findFirst({ where: eq(organizations.id, organizationId) });
@@ -289,17 +291,20 @@ export async function getAdminLists(organizationId: string) {
   const db = getDb();
   const [customerRows, appointmentRows, messageRows] = await Promise.all([
     db.select({ id: customers.id, name: sql<string>`${customers.firstName} || ' ' || coalesce(${customers.lastName}, '')`, phone: customers.phone, consent: customers.marketingConsent, lastVisit: customers.lastVisitAt }).from(customers).where(eq(customers.organizationId, organizationId)).orderBy(desc(customers.lastVisitAt)).limit(500),
-    db.select({ id: appointments.id, service: appointments.serviceName, customer: sql<string>`coalesce(${customers.firstName}, 'Cliente')`, startsAt: appointments.startsAt, status: appointments.status }).from(appointments).leftJoin(customers, eq(appointments.customerId, customers.id)).where(eq(appointments.organizationId, organizationId)).orderBy(appointments.startsAt).limit(500),
+    db.select({ id: appointments.id, service: appointments.serviceName, customer: sql<string>`coalesce(${customers.firstName}, 'Cliente')`, startsAt: appointments.startsAt, status: appointments.status, calendarProvider: appointments.calendarProvider, calendarSyncStatus: appointments.calendarSyncStatus, calendarSyncError: appointments.calendarSyncError }).from(appointments).leftJoin(customers, eq(appointments.customerId, customers.id)).where(eq(appointments.organizationId, organizationId)).orderBy(appointments.startsAt).limit(500),
     db.select({ id: messages.id, customer: sql<string>`${customers.firstName} || ' ' || coalesce(${customers.lastName}, '')`, body: messages.body, status: messages.status, direction: messages.direction }).from(messages).leftJoin(customers, eq(messages.customerId, customers.id)).where(eq(messages.organizationId, organizationId)).orderBy(desc(messages.createdAt)).limit(500),
   ]);
-  return { customers: customerRows.map((row) => ({ ...row, name: row.name.trim(), lastVisit: row.lastVisit ? row.lastVisit.toLocaleDateString("it-IT") : "Mai" })), appointments: appointmentRows.map((row) => ({ ...row, startsAt: row.startsAt.toLocaleString("it-IT", { dateStyle: "short", timeStyle: "short" }) })), messages: messageRows, mode: "live" as const };
+  return { customers: customerRows.map((row) => ({ ...row, name: row.name.trim(), lastVisit: row.lastVisit ? row.lastVisit.toLocaleDateString("it-IT") : "Mai" })), appointments: appointmentRows.map((row) => ({ ...row, startsAt: row.startsAt.toLocaleString("it-IT", { dateStyle: "short", timeStyle: "short" }), status: row.calendarSyncError ? `${row.status} · Calendario da controllare` : row.calendarProvider === "calcom" && row.calendarSyncStatus === "synced" ? `${row.status} · Cal.com sincronizzato` : `${row.status} · Solo AgendaPiena` })), messages: messageRows, mode: "live" as const };
 }
 
 export async function getOrganizationSettings(organizationId: string) {
-  if (!isDatabaseConfigured()) return { organization: demoOrganization, integrations: { database: false, ai: false, whatsapp: false, stripe: false }, mode: "demo" as const };
-  const organization = await getDb().query.organizations.findFirst({ where: eq(organizations.id, organizationId) });
+  if (!isDatabaseConfigured()) return { organization: demoOrganization, integrations: { database: false, ai: false, whatsapp: false, stripe: false, calendar: await getCalcomAdminStatus(organizationId) }, mode: "demo" as const };
+  const [organization, calendar] = await Promise.all([
+    getDb().query.organizations.findFirst({ where: eq(organizations.id, organizationId) }),
+    getCalcomAdminStatus(organizationId),
+  ]);
   if (!organization) throw new Error("Attività non trovata");
-  return { organization, integrations: { database: true, ai: Boolean(process.env.OPENAI_API_KEY && process.env.AI_DRAFTS_ENABLED === "true"), whatsapp: Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID && process.env.WHATSAPP_TEMPLATE_NAME), stripe: stripeIsConfigured() }, mode: "live" as const };
+  return { organization, integrations: { database: true, ai: Boolean(process.env.OPENAI_API_KEY && process.env.AI_DRAFTS_ENABLED === "true"), whatsapp: Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID && process.env.WHATSAPP_TEMPLATE_NAME), stripe: stripeIsConfigured(), calendar }, mode: "live" as const };
 }
 
 export async function updateOrganizationSettings(organizationId: string, input: { name: string; city: string | null; toneOfVoice: string; averageTicketCents: number; settings: Record<string, unknown> }) {

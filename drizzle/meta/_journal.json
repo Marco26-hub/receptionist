@@ -43,6 +43,13 @@
       "when": 1786478400000,
       "tag": "0005_voice_knowledge_sources",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1786636800000,
+      "tag": "0006_calendar_sync",
+      "breakpoints": true
     }
   ]
 }

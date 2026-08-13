@@ -44,6 +44,15 @@ Configura nella repository GitHub:
 4. Controlla il workflow GitHub Actions e gli audit log.
 5. Fai verificare Privacy, Termini, DPA, base giuridica dei messaggi e conservazione dei dati.
 
+## 5.1 Calendario Cal.com
+
+1. Imposta su Render `INTEGRATION_ENCRYPTION_KEY` con almeno 32 caratteri casuali e non cambiarla dopo aver collegato i calendari.
+2. Crea su Cal.com un tipo di appuntamento telefonico: nome e telefono obbligatori, email facoltativa, calendario Google o Outlook collegato.
+3. Crea una chiave in `Cal.com > Impostazioni > Sviluppatori > Chiavi API`.
+4. Nell’admin AgendaPiena apri `Impostazioni`, inserisci chiave e ID del tipo di appuntamento, quindi premi `Verifica e collega`.
+5. Prova disponibilità, prenotazione, spostamento e annullamento. Controlla sia AgendaPiena sia il calendario finale.
+6. Simula una chiave revocata: l’assistente non deve confermare l’operazione e l’errore deve comparire nell’admin.
+
 ## 6. Assistente vocale
 
 1. Crea in Retell un assistente con motore Retell LLM e una voce compatibile con le lingue scelte.

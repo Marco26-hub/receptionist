@@ -15,6 +15,7 @@ import {
   type VoiceTranscriptTurn,
 } from "../../db/schema";
 import { normalizePhone } from "./security";
+import { cancelCalcomBooking, createCalcomBooking, getCalcomSlots, rescheduleCalcomBooking } from "./calcom";
 import { ValidationError } from "./validation";
 import { defaultVoiceFaqs, defaultVoicePrompt, defaultVoiceServices, demoVoiceAgent, demoVoiceCalls, requiredVoiceScenarioIds, voiceScenarios } from "./voice-demo";
 import { safeVoiceGreeting, voiceGreeting } from "./voice-language";
@@ -315,6 +316,16 @@ export async function getAvailableVoiceSlots(organizationId: string, durationMin
   const workingDays = settings.workingDays || [1, 2, 3, 4, 5, 6];
   const horizon = new Date(from.getTime() + 14 * 86_400_000);
   const booked = await db.select().from(appointments).where(and(eq(appointments.organizationId, organizationId), gte(appointments.startsAt, from), lte(appointments.startsAt, horizon), inArray(appointments.status, ["confirmed", "pending"])));
+  const providerSlots = await getCalcomSlots(organizationId, { from, until: horizon, durationMinutes, timeZone: organization.timezone });
+  if (providerSlots) {
+    return providerSlots.filter((slot) => {
+      const end = new Date(slot.getTime() + durationMinutes * 60_000);
+      return !booked.some((appointment) => appointment.startsAt < end && appointment.endsAt > slot);
+    }).slice(0, 4).map((slot) => ({
+      startsAt: slot.toISOString(),
+      label: new Intl.DateTimeFormat("it-IT", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone: organization.timezone }).format(slot),
+    }));
+  }
   const todayParts = new Intl.DateTimeFormat("en-CA", { timeZone: organization.timezone, year: "numeric", month: "2-digit", day: "2-digit" })
     .formatToParts(from);
   const today = Object.fromEntries(todayParts.filter((part) => part.type !== "literal").map((part) => [part.type, Number(part.value)]));
@@ -345,21 +356,31 @@ export async function createVoiceBooking(input: { organizationId: string; firstN
     if (existing) return { ok: true, demo: false, appointmentId: existing.id, existing: true };
   }
   const phone = normalizePhone(input.phone);
-  let customer = await db.query.customers.findFirst({ where: and(eq(customers.organizationId, input.organizationId), eq(customers.phone, phone)) });
-  if (!customer) [customer] = await db.insert(customers).values({ organizationId: input.organizationId, firstName: input.firstName, phone, marketingConsent: false }).returning();
   const endsAt = new Date(input.startsAt.getTime() + input.durationMinutes * 60_000);
   const [conflict] = await db.select({ count: sql<number>`count(*)` }).from(appointments).where(and(eq(appointments.organizationId, input.organizationId), inArray(appointments.status, ["confirmed", "pending"]), lt(appointments.startsAt, endsAt), gt(appointments.endsAt, input.startsAt)));
   if (Number(conflict?.count || 0) > 0) throw new ValidationError("Questo orario non è più disponibile");
-  const values = { organizationId: input.organizationId, customerId: customer.id, externalId: input.externalId, serviceName: input.serviceName, startsAt: input.startsAt, endsAt, status: "confirmed", valueCents: input.priceCents };
-  if (input.externalId) {
-    const [appointment] = await db.insert(appointments).values(values).onConflictDoNothing({ target: [appointments.organizationId, appointments.externalId] }).returning({ id: appointments.id });
-    if (appointment) return { ok: true, demo: false, appointmentId: appointment.id };
-    const existing = await db.query.appointments.findFirst({ where: and(eq(appointments.organizationId, input.organizationId), eq(appointments.externalId, input.externalId)) });
-    if (existing) return { ok: true, demo: false, appointmentId: existing.id, existing: true };
-    throw new ValidationError("La prenotazione non è stata salvata. Riprova o coinvolgi lo staff");
+  const organization = await db.query.organizations.findFirst({ where: eq(organizations.id, input.organizationId) });
+  if (!organization) throw new ValidationError("Attività non trovata");
+  const calendarEventId = await createCalcomBooking(input.organizationId, { startsAt: input.startsAt, durationMinutes: input.durationMinutes, firstName: input.firstName, phone, serviceName: input.serviceName, timeZone: organization.timezone });
+  try {
+    return await db.transaction(async (transaction) => {
+      await transaction.execute(sql`select pg_advisory_xact_lock(hashtext(${input.organizationId}))`);
+      if (input.externalId) {
+        const existing = await transaction.query.appointments.findFirst({ where: and(eq(appointments.organizationId, input.organizationId), eq(appointments.externalId, input.externalId)) });
+        if (existing) return { ok: true, demo: false, appointmentId: existing.id, existing: true };
+      }
+      const [lockedConflict] = await transaction.select({ count: sql<number>`count(*)` }).from(appointments).where(and(eq(appointments.organizationId, input.organizationId), inArray(appointments.status, ["confirmed", "pending"]), lt(appointments.startsAt, endsAt), gt(appointments.endsAt, input.startsAt)));
+      if (Number(lockedConflict?.count || 0) > 0) throw new ValidationError("Questo orario non è più disponibile");
+      let customer = await transaction.query.customers.findFirst({ where: and(eq(customers.organizationId, input.organizationId), eq(customers.phone, phone)) });
+      if (!customer) [customer] = await transaction.insert(customers).values({ organizationId: input.organizationId, firstName: input.firstName, phone, marketingConsent: false }).returning();
+      const values = { organizationId: input.organizationId, customerId: customer.id, externalId: input.externalId, calendarProvider: calendarEventId ? "calcom" : null, calendarEventId, calendarSyncStatus: calendarEventId ? "synced" : "not_connected", calendarSyncError: null, serviceName: input.serviceName, startsAt: input.startsAt, endsAt, status: "confirmed", valueCents: input.priceCents };
+      const [appointment] = await transaction.insert(appointments).values(values).returning({ id: appointments.id });
+      return { ok: true, demo: false, appointmentId: appointment.id };
+    });
+  } catch (error) {
+    if (calendarEventId) await cancelCalcomBooking(input.organizationId, calendarEventId).catch(() => undefined);
+    throw error;
   }
-  const [appointment] = await db.insert(appointments).values(values).returning({ id: appointments.id });
-  return { ok: true, demo: false, appointmentId: appointment.id };
 }
 
 export async function findUpcomingVoiceAppointments(input: { organizationId: string; firstName: string; phone: string; testMode: boolean }) {
@@ -406,7 +427,16 @@ export async function rescheduleVoiceAppointment(input: { organizationId: string
     gt(appointments.endsAt, input.startsAt),
   ));
   if (Number(conflict?.count || 0) > 0) throw new ValidationError("Il nuovo orario non è più disponibile");
-  await db.update(appointments).set({ startsAt: input.startsAt, endsAt }).where(and(eq(appointments.id, appointment.id), eq(appointments.organizationId, input.organizationId)));
+  let calendarEventId = appointment.calendarEventId;
+  if (appointment.calendarProvider === "calcom" && calendarEventId) {
+    try {
+      calendarEventId = await rescheduleCalcomBooking(input.organizationId, calendarEventId, input.startsAt);
+    } catch (error) {
+      await db.update(appointments).set({ calendarSyncStatus: "error", calendarSyncError: error instanceof Error ? error.message.slice(0, 240) : "Spostamento non sincronizzato" }).where(and(eq(appointments.id, appointment.id), eq(appointments.organizationId, input.organizationId)));
+      throw error;
+    }
+  }
+  await db.update(appointments).set({ startsAt: input.startsAt, endsAt, calendarEventId, calendarSyncStatus: calendarEventId ? "synced" : appointment.calendarSyncStatus, calendarSyncError: null }).where(and(eq(appointments.id, appointment.id), eq(appointments.organizationId, input.organizationId)));
   return { ok: true, demo: false, appointmentId: appointment.id };
 }
 
@@ -416,13 +446,22 @@ export async function cancelVoiceAppointment(input: { organizationId: string; ap
   const db = getDb();
   const customer = await db.query.customers.findFirst({ where: and(eq(customers.organizationId, input.organizationId), eq(customers.phone, normalizePhone(input.phone))) });
   if (!customer) throw new ValidationError("Appuntamento non trovato");
-  const [appointment] = await db.update(appointments).set({ status: "cancelled" }).where(and(
+  const appointment = await db.query.appointments.findFirst({ where: and(
     eq(appointments.id, input.appointmentId),
     eq(appointments.organizationId, input.organizationId),
     eq(appointments.customerId, customer.id),
     inArray(appointments.status, ["confirmed", "pending"]),
-  )).returning({ id: appointments.id });
+  ) });
   if (!appointment) throw new ValidationError("Appuntamento non trovato o già annullato");
+  if (appointment.calendarProvider === "calcom" && appointment.calendarEventId) {
+    try {
+      await cancelCalcomBooking(input.organizationId, appointment.calendarEventId);
+    } catch (error) {
+      await db.update(appointments).set({ calendarSyncStatus: "error", calendarSyncError: error instanceof Error ? error.message.slice(0, 240) : "Annullamento non sincronizzato" }).where(and(eq(appointments.id, appointment.id), eq(appointments.organizationId, input.organizationId)));
+      throw error;
+    }
+  }
+  await db.update(appointments).set({ status: "cancelled", calendarSyncStatus: appointment.calendarEventId ? "cancelled" : appointment.calendarSyncStatus, calendarSyncError: null }).where(and(eq(appointments.id, appointment.id), eq(appointments.organizationId, input.organizationId)));
   return { ok: true, demo: false, appointmentId: appointment.id };
 }
 

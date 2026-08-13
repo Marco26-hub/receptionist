@@ -31,6 +31,8 @@ services:
         generateValue: true
       - key: CRON_SECRET
         generateValue: true
+      - key: INTEGRATION_ENCRYPTION_KEY
+        generateValue: true
       - key: AI_DRAFTS_ENABLED
         value: "false"
       - key: OPENAI_API_KEY

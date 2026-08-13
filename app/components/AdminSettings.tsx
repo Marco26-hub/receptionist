@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Database, MessageCircle, Save, Sparkles, WalletCards } from "lucide-react";
+import { CalendarClock, Check, Database, ExternalLink, KeyRound, MessageCircle, Save, Sparkles, Unplug, WalletCards } from "lucide-react";
 
 type SettingsProps = {
   organization: {
@@ -11,7 +11,13 @@ type SettingsProps = {
     averageTicketCents: number;
     settings: Record<string, unknown>;
   };
-  integrations: { database: boolean; ai: boolean; whatsapp: boolean; stripe: boolean };
+  integrations: {
+    database: boolean;
+    ai: boolean;
+    whatsapp: boolean;
+    stripe: boolean;
+    calendar: { connected: boolean; encryptionReady: boolean; eventTypeId: number | null; account: string | null; lastVerifiedAt: string | null; lastSuccessAt: string | null; lastError: string | null };
+  };
   mode: "demo" | "live";
 };
 
@@ -20,6 +26,9 @@ const days: Array<[number, string]> = [[1, "Lun"], [2, "Mar"], [3, "Mer"], [4, "
 export function AdminSettings({ organization, integrations, mode }: SettingsProps) {
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const [calendar, setCalendar] = useState(integrations.calendar);
+  const [calendarBusy, setCalendarBusy] = useState(false);
+  const [calendarNotice, setCalendarNotice] = useState("");
   const settings = organization.settings as { openingHour?: number; closingHour?: number; slotMinutes?: number; workingDays?: number[] };
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
@@ -32,6 +41,26 @@ export function AdminSettings({ organization, integrations, mode }: SettingsProp
     });
     const result = await response.json(); setBusy(false);
     setNotice(response.ok ? mode === "demo" ? "Impostazioni verificate in modalità demo" : "Impostazioni salvate" : result.error);
+  }
+
+  async function connectCalendar(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault(); setCalendarBusy(true); setCalendarNotice("");
+    const form = new FormData(event.currentTarget);
+    const response = await fetch("/api/admin/integrations/calcom", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ apiKey: form.get("apiKey"), eventTypeId: Number(form.get("eventTypeId")) }) });
+    const result = await response.json(); setCalendarBusy(false);
+    if (!response.ok) return setCalendarNotice(result.error || "Collegamento non riuscito");
+    setCalendar(result.status); setCalendarNotice("Calendario verificato e collegato. Da ora gli appuntamenti reali passano da Cal.com.");
+    event.currentTarget.reset();
+  }
+
+  async function disconnectCalendar() {
+    if (!window.confirm("Scollegare Cal.com? Gli appuntamenti esistenti restano salvati, ma non verranno più sincronizzati.")) return;
+    setCalendarBusy(true); setCalendarNotice("");
+    const response = await fetch("/api/admin/integrations/calcom", { method: "DELETE" });
+    const result = await response.json(); setCalendarBusy(false);
+    if (!response.ok) return setCalendarNotice(result.error || "Operazione non riuscita");
+    setCalendar((current) => ({ ...current, connected: false, eventTypeId: null, account: null, lastVerifiedAt: null, lastSuccessAt: null, lastError: null }));
+    setCalendarNotice("Cal.com scollegato. Il pannello segnalerà che è attiva soltanto l’agenda interna.");
   }
 
   const integrationRows = [
@@ -49,6 +78,25 @@ export function AdminSettings({ organization, integrations, mode }: SettingsProp
         <Icon size={19} /><strong>{label}</strong>
         {integrations[key] ? <span><Check size={13} />Collegato</span> : <span>Da collegare</span>}
       </article>)}
+    </section>
+    <section className={`calendar-settings ${calendar.connected ? "connected" : ""}`}>
+      <header>
+        <div><CalendarClock size={23} /><span><strong>Calendario appuntamenti</strong><small>{calendar.connected ? `Cal.com collegato${calendar.account ? ` · ${calendar.account}` : ""}` : "Agenda interna attiva · Cal.com da collegare"}</small></span></div>
+        <b>{calendar.connected && !calendar.lastError ? "Operativo" : calendar.lastError ? "Richiede controllo" : "Non collegato"}</b>
+      </header>
+      {calendar.lastError && <p className="calendar-error"><strong>Ultimo errore visibile:</strong> {calendar.lastError}</p>}
+      {!calendar.encryptionReady && <p className="calendar-error"><strong>Blocco di sicurezza:</strong> manca la chiave che cifra le credenziali. Nessuna chiave Cal.com può essere salvata.</p>}
+      {calendar.connected ? <div className="calendar-connected-actions">
+        <p>Tipo appuntamento Cal.com: <strong>#{calendar.eventTypeId}</strong>. Disponibilità, nuove prenotazioni, spostamenti e annullamenti vengono sincronizzati.</p>
+        <button type="button" onClick={disconnectCalendar} disabled={calendarBusy}><Unplug size={16} />Scollega</button>
+      </div> : <form onSubmit={connectCalendar} className="calendar-connect-form">
+        <div><KeyRound size={18} /><p>Crea una chiave in Cal.com e indica il tipo di appuntamento da usare. La chiave viene cifrata prima di entrare nel database.</p></div>
+        <label>Chiave API Cal.com<input type="password" name="apiKey" autoComplete="off" placeholder="cal_live_..." required disabled={!calendar.encryptionReady} /></label>
+        <label>ID tipo appuntamento<input type="number" name="eventTypeId" min="1" step="1" placeholder="123456" required disabled={!calendar.encryptionReady} /></label>
+        <button disabled={calendarBusy || !calendar.encryptionReady}><CalendarClock size={17} />{calendarBusy ? "Verifica in corso..." : "Verifica e collega"}</button>
+        <a href="https://app.cal.com/settings/developer/api-keys" target="_blank" rel="noreferrer">Apri Cal.com <ExternalLink size={14} /></a>
+      </form>}
+      {calendarNotice && <p className="calendar-notice">{calendarNotice}</p>}
     </section>
     <form className="settings-form" onSubmit={submit}>
       <div>

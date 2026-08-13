@@ -3,6 +3,7 @@ const required = [
   ["DATABASE_URL", Boolean],
   ["SESSION_SECRET", (value) => value.length >= 32],
   ["CRON_SECRET", (value) => value.length >= 24],
+  ["INTEGRATION_ENCRYPTION_KEY", (value) => value.length >= 32],
   ["WHATSAPP_ACCESS_TOKEN", Boolean],
   ["WHATSAPP_PHONE_NUMBER_ID", Boolean],
   ["WHATSAPP_VERIFY_TOKEN", Boolean],

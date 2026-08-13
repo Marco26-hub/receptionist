@@ -64,6 +64,26 @@ test("makes operational fallbacks visible and blocks fake production sends", asy
   assert.match(ai, /fallbackReason/);
 });
 
+test("connects Cal.com without hiding calendar failures", async () => {
+  const [calendar, crypto, settings, voiceRepository, runtime, migration] = await Promise.all([
+    read("app/lib/calcom.ts"),
+    read("app/lib/integration-crypto.ts"),
+    read("app/components/AdminSettings.tsx"),
+    read("app/lib/voice-repository.ts"),
+    read("app/lib/runtime-status.ts"),
+    read("drizzle/0006_calendar_sync.sql"),
+  ]);
+  assert.match(crypto, /aes-256-gcm/);
+  assert.match(calendar, /api\.cal\.com\/v2/);
+  assert.match(calendar, /recordError/);
+  assert.match(settings, /Ultimo errore visibile/);
+  assert.match(settings, /Verifica e collega/);
+  assert.match(voiceRepository, /getCalcomSlots/);
+  assert.match(voiceRepository, /pg_advisory_xact_lock/);
+  assert.match(runtime, /Usa solo l’agenda interna/);
+  assert.match(migration, /calendar_sync_status/);
+});
+
 test("includes data ingestion, conversion, settings and explicit AI privacy opt-in", async () => {
   await Promise.all([
     "app/api/admin/customers/route.ts",
@@ -184,7 +204,7 @@ test("ships a guarded end-to-end voice workflow", async () => {
   assert.match(webhook, /x-retell-signature/);
   assert.match(admin, /Automatico: Italiano \+ English/);
   assert.match(admin, /Prove essenziali superate/);
-  assert.match(repository, /onConflictDoNothing/);
+  assert.match(repository, /pg_advisory_xact_lock/);
   assert.match(repository, /requiredVoiceScenarioIds/);
   assert.match(runbook, /Metti in pausa/);
 });
