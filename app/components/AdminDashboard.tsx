@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import {
   CalendarDays,
   CalendarCheck,
+  Building2,
   Check,
   CircleCheck,
   ChevronRight,
@@ -207,13 +208,17 @@ export function AdminDashboard({ initialData, userEmail }: DashboardProps) {
             <Settings size={18} />
             Impostazioni
           </a>
+          <a href="/admin/aziende">
+            <Building2 size={18} />
+            Attività
+          </a>
         </nav>
         <div className="admin-account">
           <span>{userEmail.slice(0, 1).toUpperCase()}</span>
-          <div>
+          <a href="/admin/aziende" title="Cambia attività">
             <strong>{initialData.organization.name}</strong>
             <small>{userEmail}</small>
-          </div>
+          </a>
           <button onClick={logout} title="Esci">
             <LogOut size={17} />
           </button>

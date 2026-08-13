@@ -124,6 +124,27 @@ test("keeps consent state explicit during manual entry and CSV imports", async (
   assert.match(repository, /Invio fallito/);
 });
 
+test("ships guarded multi-organization switching and platform provisioning", async () => {
+  const [platform, platformRoute, switchRoute, switcher, adminPage, schema] = await Promise.all([
+    read("app/lib/platform-admin.ts"),
+    read("app/api/platform/organizations/route.ts"),
+    read("app/api/admin/organizations/switch/route.ts"),
+    read("app/components/OrganizationSwitcher.tsx"),
+    read("app/piattaforma/page.tsx"),
+    read("db/schema.ts"),
+  ]);
+  assert.match(platform, /PLATFORM_ADMIN_EMAILS/);
+  assert.match(platform, /eq\(members\.organizationId, organizationId\)/);
+  assert.match(platform, /db\.transaction/);
+  assert.match(platformRoute, /platformProvisioningReady/);
+  assert.match(platformRoute, /inviteSupabaseUser/);
+  assert.match(switchRoute, /membershipForOrganization/);
+  assert.match(switchRoute, /createAdminSession/);
+  assert.match(switcher, /Dati, agenda, messaggi e assistente restano separati/);
+  assert.match(adminPage, /isPlatformAdminEmail/);
+  assert.match(schema, /members_org_email_idx/);
+});
+
 test("includes data ingestion, conversion, settings and explicit AI privacy opt-in", async () => {
   await Promise.all([
     "app/api/admin/customers/route.ts",
